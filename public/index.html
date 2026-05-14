@@ -1,0 +1,119 @@
+<!DOCTYPE html>
+<html lang="en" class="sl-theme-dark">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Asset Server</title>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@shoelace-style/shoelace@2.20.1/cdn/themes/dark.css" />
+  <script type="module" src="https://cdn.jsdelivr.net/npm/@shoelace-style/shoelace@2.20.1/cdn/shoelace-autoloader.js"></script>
+  <link rel="stylesheet" href="/style.css" />
+</head>
+<body>
+  <div class="shell">
+
+    <!-- ── Left: Bookmarks ── -->
+    <aside class="panel-left">
+      <div class="sidebar-header">
+        <span>Asset Server</span>
+        <sl-icon-button id="btn-add-bookmark" name="bookmark-plus" title="Bookmark current folder"></sl-icon-button>
+      </div>
+
+      <div class="sidebar-section-label">Quick Access</div>
+      <button class="sidebar-item staging" id="btn-staging">
+        <sl-icon name="lightning-charge-fill"></sl-icon>
+        Staging
+      </button>
+      <button class="sidebar-item" id="btn-library">
+        <sl-icon name="folder2"></sl-icon>
+        Library Root
+      </button>
+
+      <div class="sidebar-section-label">Bookmarks</div>
+      <div id="bookmark-list"></div>
+    </aside>
+
+    <!-- ── Middle: Explorer ── -->
+    <main class="panel-main">
+      <div class="toolbar">
+        <sl-breadcrumb id="breadcrumb"></sl-breadcrumb>
+        <div class="toolbar-right">
+          <sl-icon-button id="btn-view-grid" name="grid-3x3-gap" title="Gallery view"></sl-icon-button>
+          <sl-icon-button id="btn-view-list" name="list-ul" title="List view"></sl-icon-button>
+          <sl-divider vertical style="height:20px;margin:0 4px"></sl-divider>
+          <sl-icon-button id="btn-search-open" name="search" title="Search library index"></sl-icon-button>
+          <sl-button id="btn-rebuild-index" size="small" title="Rebuild library search index">
+            <sl-icon slot="prefix" name="arrow-clockwise"></sl-icon>
+            Index
+          </sl-button>
+        </div>
+      </div>
+
+      <div id="search-bar" class="search-bar" style="display:none">
+        <sl-input id="search-input" placeholder="Search library index…" clearable size="small" style="flex:1">
+          <sl-icon slot="prefix" name="search"></sl-icon>
+        </sl-input>
+        <sl-button size="small" variant="text" id="btn-search-close">✕</sl-button>
+      </div>
+
+      <div id="file-grid" class="file-grid view-grid"></div>
+    </main>
+
+    <!-- ── Right: Preview ── -->
+    <aside class="panel-right">
+      <div class="panel-right-header">
+        <span>Preview</span>
+        <sl-icon-button id="btn-expand-panel" name="layout-sidebar-reverse" title="Expand panel"></sl-icon-button>
+      </div>
+      <div id="bulk-panel" class="bulk-panel" style="display:none">
+        <div class="bulk-count" id="bulk-count"></div>
+        <div class="preview-actions">
+          <button class="action-btn" id="btn-bulk-move">
+            <sl-icon name="folder-symlink"></sl-icon> Move all
+          </button>
+          <button class="action-btn danger" id="btn-bulk-delete">
+            <sl-icon name="trash"></sl-icon> Delete all
+          </button>
+        </div>
+      </div>
+      <div id="preview-empty" class="preview-empty">
+        <sl-icon name="image" style="font-size:3rem;opacity:0.15"></sl-icon>
+        <span>Select a file</span>
+      </div>
+      <div id="preview-content" class="preview-content" style="display:none">
+        <div class="preview-media-wrap" id="preview-media-wrap">
+          <img id="preview-img" src="" alt="" />
+          <video id="preview-video" controls loop style="display:none"></video>
+        </div>
+        <div class="preview-meta">
+          <div class="preview-name" id="preview-name"></div>
+          <div class="preview-info" id="preview-info"></div>
+        </div>
+        <div class="preview-actions">
+          <a id="btn-download" class="action-btn primary" download>
+            <sl-icon name="download"></sl-icon> Download
+          </a>
+          <button class="action-btn" id="btn-move">
+            <sl-icon name="folder-symlink"></sl-icon> Move to…
+          </button>
+          <button class="action-btn danger" id="btn-delete">
+            <sl-icon name="trash"></sl-icon> Delete
+          </button>
+        </div>
+      </div>
+    </aside>
+
+  </div>
+
+  <!-- ── Move Dialog ── -->
+  <sl-dialog label="Move to…" id="move-dialog" style="--width:480px">
+    <div class="move-dest-label">Destination: <span id="move-dest-display">—</span></div>
+    <sl-tree id="move-tree" selection="single"></sl-tree>
+    <div slot="footer" style="display:flex;gap:8px;justify-content:flex-end">
+      <sl-button variant="default" id="btn-move-cancel">Cancel</sl-button>
+      <sl-button variant="primary" id="btn-move-confirm">Move Here</sl-button>
+    </div>
+  </sl-dialog>
+
+  <script type="module" src="/app.js"></script>
+</body>
+</html>

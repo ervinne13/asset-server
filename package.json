@@ -1,0 +1,14 @@
+{
+  "name": "asset-server",
+  "version": "0.1.0",
+  "description": "Browser-based file explorer for ComfyUI asset management",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "dev": "node --watch server.js",
+    "deploy": "bash scripts/deploy.sh"
+  },
+  "dependencies": {
+    "express": "^4.19.2"
+  }
+}

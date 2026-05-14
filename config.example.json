@@ -1,0 +1,11 @@
+{
+  "roots": {
+    "staging": "/home/ervinne/ComfyUI/output",
+    "library": "/mnt/windows/Others/LinuxFiles/resources_and_outputs"
+  },
+  "bookmarks": [
+    { "name": "Outputs", "path": "/mnt/windows/Others/LinuxFiles/resources_and_outputs/Outputs" },
+    { "name": "Clothes", "path": "/mnt/windows/Others/LinuxFiles/resources_and_outputs/Clothes" }
+  ],
+  "port": 3000
+}
