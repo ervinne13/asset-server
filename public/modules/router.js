@@ -5,6 +5,7 @@ import { renderFiles } from './files.js';           // circular dep — fine at 
 import { clearPreview } from './preview.js';
 import { clearSelection, refreshSelectionVisuals, updateRightPanel } from './selection.js';
 import { renderBookmarks } from './bookmarks.js';   // circular dep — fine at runtime
+import { closeMobileSidebar } from './mobile.js';
 
 export function pathToUrl(absPath) {
   const { staging, library } = state.config?.roots || {};
@@ -35,6 +36,7 @@ export function urlToPath(pathname) {
 
 export async function navigate(dirPath, { historyMode = 'push' } = {}) {
   state.currentPath = dirPath;
+  closeMobileSidebar();
   clearSelection();
   clearPreview();
   renderBookmarks();

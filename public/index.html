@@ -7,15 +7,31 @@
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@shoelace-style/shoelace@2.20.1/cdn/themes/dark.css" />
   <script type="module" src="https://cdn.jsdelivr.net/npm/@shoelace-style/shoelace@2.20.1/cdn/shoelace-autoloader.js"></script>
   <link rel="stylesheet" href="/style.css" />
+  <link rel="modulepreload" href="/app.js" />
+  <link rel="modulepreload" href="/modules/state.js" />
+  <link rel="modulepreload" href="/modules/api.js" />
+  <link rel="modulepreload" href="/modules/helpers.js" />
+  <link rel="modulepreload" href="/modules/preview.js" />
+  <link rel="modulepreload" href="/modules/selection.js" />
+  <link rel="modulepreload" href="/modules/files.js" />
+  <link rel="modulepreload" href="/modules/router.js" />
+  <link rel="modulepreload" href="/modules/bookmarks.js" />
+  <link rel="modulepreload" href="/modules/search.js" />
+  <link rel="modulepreload" href="/modules/move.js" />
+  <link rel="modulepreload" href="/modules/trash.js" />
+  <link rel="modulepreload" href="/modules/keyboard.js" />
+  <link rel="modulepreload" href="/modules/lightbox.js" />
+  <link rel="modulepreload" href="/modules/mobile.js" />
 </head>
 <body>
   <div class="shell">
 
     <!-- ── Left: Bookmarks ── -->
-    <aside class="panel-left">
+    <aside class="panel-left" id="panel-left">
       <div class="sidebar-header">
         <span>Asset Server</span>
         <sl-icon-button id="btn-add-bookmark" name="bookmark-plus" title="Bookmark current folder"></sl-icon-button>
+        <sl-icon-button id="btn-close-sidebar" name="x-lg" title="Close" class="btn-close-sidebar"></sl-icon-button>
       </div>
 
       <div class="sidebar-section-label">Quick Access</div>
@@ -35,13 +51,14 @@
     <!-- ── Middle: Explorer ── -->
     <main class="panel-main">
       <div class="toolbar">
+        <sl-icon-button id="btn-hamburger" name="list" title="Menu" class="btn-hamburger"></sl-icon-button>
         <sl-breadcrumb id="breadcrumb"></sl-breadcrumb>
         <div class="toolbar-right">
-          <sl-icon-button id="btn-view-grid" name="grid-3x3-gap" title="Gallery view"></sl-icon-button>
-          <sl-icon-button id="btn-view-list" name="list-ul" title="List view"></sl-icon-button>
-          <sl-divider vertical style="height:20px;margin:0 4px"></sl-divider>
+          <sl-icon-button id="btn-view-grid" name="grid-3x3-gap" title="Gallery view" class="btn-desktop-only"></sl-icon-button>
+          <sl-icon-button id="btn-view-list" name="list-ul" title="List view" class="btn-desktop-only"></sl-icon-button>
+          <sl-divider vertical style="height:20px;margin:0 4px" class="btn-desktop-only"></sl-divider>
           <sl-icon-button id="btn-search-open" name="search" title="Search library index"></sl-icon-button>
-          <sl-button id="btn-rebuild-index" size="small" title="Rebuild library search index">
+          <sl-button id="btn-rebuild-index" size="small" title="Rebuild library search index" class="btn-desktop-only">
             <sl-icon slot="prefix" name="arrow-clockwise"></sl-icon>
             Index
           </sl-button>
@@ -103,6 +120,9 @@
     </aside>
 
   </div>
+
+  <!-- ── Mobile sidebar overlay ── -->
+  <div id="mobile-overlay" class="mobile-overlay"></div>
 
   <!-- ── Move Dialog ── -->
   <sl-dialog label="Move to…" id="move-dialog" style="--width:480px">

@@ -6,6 +6,7 @@ import { loadBookmarks } from './modules/bookmarks.js';
 import { renderFiles } from './modules/files.js';
 
 // Side-effect imports — each module wires its own event handlers
+import './modules/mobile.js';
 import './modules/preview.js';
 import './modules/search.js';
 import './modules/move.js';

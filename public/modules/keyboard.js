@@ -11,7 +11,7 @@ import { openLightbox, closeLightbox, stepLightbox, updateLightbox } from './lig
 //  Navigation
 //    →  /  ↓       Next item  (↓ jumps a full row in grid view)
 //    ←  /  ↑       Prev item  (↑ jumps a full row in grid view)
-//    Enter          Open image/video in photo mode  /  open folder
+//    Enter / Space  Open image/video in photo mode  /  open folder
 //    Backspace      Go up one folder (when nothing is selected)
 //
 //  Photo mode  (Enter to open, Esc to close)
@@ -98,6 +98,7 @@ document.addEventListener('keydown', e => {
         break;
       case 'Escape':
       case 'Enter':
+      case ' ':
         closeLightbox();
         break;
       case 'Delete':
@@ -131,6 +132,7 @@ document.addEventListener('keydown', e => {
       break;
 
     case 'Enter':
+    case ' ':
       if (state.selectedFile) {
         if (state.selectedFile.isDir) {
           navigate(state.selectedFile.path);

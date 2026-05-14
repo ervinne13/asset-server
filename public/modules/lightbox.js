@@ -2,6 +2,7 @@ import { state } from './state.js';
 import { api } from './api.js';
 import { isImg, isVideo } from './helpers.js';
 import { selectFile } from './selection.js';
+import { softDelete } from './trash.js'; // circular via files.js — safe, all exports are hoisted functions
 
 let imgEl, videoEl, nameEl, counterEl, prevBtn, nextBtn;
 
@@ -23,6 +24,9 @@ function buildDOM() {
     <div class="lb-bar">
       <span id="lb-name"></span>
       <span id="lb-counter"></span>
+      <button class="lb-delete" id="lb-delete" title="Delete (d)">
+        <sl-icon name="trash"></sl-icon>
+      </button>
     </div>
   `;
   document.body.appendChild(overlay);
@@ -34,7 +38,10 @@ function buildDOM() {
   prevBtn   = document.getElementById('lb-prev');
   nextBtn   = document.getElementById('lb-next');
 
-  document.getElementById('lb-close').onclick = closeLightbox;
+  document.getElementById('lb-close').onclick  = closeLightbox;
+  document.getElementById('lb-delete').onclick = () => {
+    if (state.selectedFile) softDelete(state.selectedFile).then(() => updateLightbox());
+  };
   prevBtn.onclick = () => stepLightbox(-1);
   nextBtn.onclick = () => stepLightbox(1);
 
@@ -42,6 +49,24 @@ function buildDOM() {
   overlay.addEventListener('click', e => {
     if (e.target === overlay) closeLightbox();
   });
+
+  // ── Swipe navigation ───────────────────────────────────────────────────────
+  let touchStartX = 0;
+  let touchStartY = 0;
+
+  overlay.addEventListener('touchstart', e => {
+    touchStartX = e.touches[0].clientX;
+    touchStartY = e.touches[0].clientY;
+  }, { passive: true });
+
+  overlay.addEventListener('touchend', e => {
+    const dx = e.changedTouches[0].clientX - touchStartX;
+    const dy = e.changedTouches[0].clientY - touchStartY;
+    // Only fire if clearly horizontal and past the threshold
+    if (Math.abs(dx) > 50 && Math.abs(dx) > Math.abs(dy) * 1.5) {
+      stepLightbox(dx < 0 ? 1 : -1); // swipe left → next, swipe right → prev
+    }
+  }, { passive: true });
 }
 
 function mediaItems() {
@@ -66,8 +91,8 @@ function showItem(item) {
   const idx   = items.findIndex(i => i.path === item.path);
   nameEl.textContent    = item.name;
   counterEl.textContent = items.length > 1 ? `${idx + 1} / ${items.length}` : '';
-  prevBtn.style.visibility = idx > 0                 ? '' : 'hidden';
-  nextBtn.style.visibility = idx < items.length - 1  ? '' : 'hidden';
+  prevBtn.style.visibility = idx > 0                ? '' : 'hidden';
+  nextBtn.style.visibility = idx < items.length - 1 ? '' : 'hidden';
 }
 
 export function openLightbox(item) {

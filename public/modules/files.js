@@ -1,8 +1,10 @@
 import { state } from './state.js';
 import { api } from './api.js';
 import { $, isImg, isVideo, fmtSize, fmtDate } from './helpers.js';
-import { handleItemClick } from './selection.js';
-import { navigate } from './router.js'; // circular dep is fine — only used in event handlers
+import { handleItemClick, selectFile } from './selection.js';
+import { navigate } from './router.js'; // circular dep — fine at runtime
+import { openLightbox } from './lightbox.js'; // circular dep — fine at runtime
+import { isMobile } from './mobile.js';
 
 export function renderFiles(items) {
   const grid = $('file-grid');
@@ -56,7 +58,14 @@ export function makeCard(item) {
     dl.addEventListener('click', e => e.stopPropagation());
     card.appendChild(dl);
 
-    card.onclick = e => handleItemClick(e, item);
+    card.onclick = e => {
+      if (isMobile() && (isImg(item.name) || isVideo(item.name))) {
+        selectFile(item);
+        openLightbox(item);
+      } else {
+        handleItemClick(e, item);
+      }
+    };
   }
 
   card.appendChild(thumb);
@@ -93,7 +102,14 @@ export function makeRow(item) {
     dl.title = 'Download';
     dl.addEventListener('click', e => e.stopPropagation());
     row.appendChild(dl);
-    row.onclick = e => handleItemClick(e, item);
+    row.onclick = e => {
+      if (isMobile() && (isImg(item.name) || isVideo(item.name))) {
+        selectFile(item);
+        openLightbox(item);
+      } else {
+        handleItemClick(e, item);
+      }
+    };
   } else {
     row.onclick = e => (e.ctrlKey || e.metaKey) ? handleItemClick(e, item) : navigate(item.path);
   }
