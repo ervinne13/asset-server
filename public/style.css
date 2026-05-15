@@ -123,6 +123,12 @@ body {
   opacity: 0.35;
 }
 
+.bm-link {
+  display: contents;
+  color: inherit;
+  text-decoration: none;
+}
+
 .bm-icon {
   color: var(--sl-color-neutral-500);
   flex-shrink: 0;

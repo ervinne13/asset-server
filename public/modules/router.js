@@ -35,6 +35,7 @@ export function urlToPath(pathname) {
 }
 
 export async function navigate(dirPath, { historyMode = 'push' } = {}) {
+  if (state.currentPath) state.scrollPositions[state.currentPath] = $('file-grid').scrollTop;
   state.currentPath = dirPath;
   closeMobileSidebar();
   clearSelection();
@@ -64,6 +65,8 @@ export async function navigate(dirPath, { historyMode = 'push' } = {}) {
 
   renderBreadcrumb(dirPath);
   renderFiles(items);
+  $('file-grid').scrollTop = state.scrollPositions[dirPath] ?? 0;
+  updateRightPanel();
 }
 
 export async function silentRefresh() {

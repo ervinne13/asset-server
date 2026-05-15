@@ -1,7 +1,7 @@
 import { state } from './state.js';
 import { api } from './api.js';
 import { $ } from './helpers.js';
-import { navigate } from './router.js'; // circular dep — fine at runtime
+import { navigate, pathToUrl } from './router.js'; // circular dep — fine at runtime
 
 export async function loadBookmarks() {
   state.bookmarks = await api.bookmarks();
@@ -18,14 +18,20 @@ export function renderBookmarks() {
     row.dataset.idx = i;
     row.title = bm.path;
     row.innerHTML = `
-      <sl-icon name="folder2" class="bm-icon"></sl-icon>
-      <span class="bm-name">${bm.name}</span>
+      <a class="bm-link" href="${pathToUrl(bm.path)}">
+        <sl-icon name="folder2" class="bm-icon"></sl-icon>
+        <span class="bm-name">${bm.name}</span>
+      </a>
       <button class="bm-remove" title="Remove bookmark">✕</button>
       <span class="bm-handle" title="Drag to reorder">⠿</span>
     `;
 
-    row.querySelector('.bm-icon').onclick = () => navigate(bm.path);
-    row.querySelector('.bm-name').onclick = () => navigate(bm.path);
+    row.querySelector('.bm-link').addEventListener('click', e => {
+      if (e.button === 0 && !e.ctrlKey && !e.metaKey) {
+        e.preventDefault();
+        navigate(bm.path);
+      }
+    });
 
     row.querySelector('.bm-remove').onclick = async e => {
       e.stopPropagation();

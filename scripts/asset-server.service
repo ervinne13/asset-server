@@ -1,0 +1,14 @@
+[Unit]
+Description=Asset Server
+After=network.target
+
+[Service]
+Type=simple
+User=ervinne
+WorkingDirectory=/home/ervinne/projects/asset-server
+ExecStart=/usr/bin/npm start
+Restart=on-failure
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target

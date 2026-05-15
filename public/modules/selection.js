@@ -13,15 +13,30 @@ export function updateRightPanel() {
   const bulkPanel = $('bulk-panel');
   const previewEmpty = $('preview-empty');
   const previewContent = $('preview-content');
+  const folderPanel = $('folder-panel');
 
   if (n === 0) {
     bulkPanel.style.display = 'none';
-    previewEmpty.style.display = '';
     previewContent.style.display = 'none';
+
+    if (state.currentPath) {
+      previewEmpty.style.display = 'none';
+      folderPanel.style.display = 'flex';
+      const name = state.currentPath.split('/').pop() || state.currentPath;
+      const count = state.currentItems.length;
+      $('folder-panel-name').textContent = name;
+      $('folder-panel-info').textContent = count === 0 ? 'Empty' : `${count} item${count !== 1 ? 's' : ''}`;
+      $('folder-panel-actions').style.display = count === 0 ? 'flex' : 'none';
+    } else {
+      folderPanel.style.display = 'none';
+      previewEmpty.style.display = '';
+    }
   } else if (n === 1) {
+    folderPanel.style.display = 'none';
     bulkPanel.style.display = 'none';
     showPreview(state.selectedFile);
   } else {
+    folderPanel.style.display = 'none';
     previewEmpty.style.display = 'none';
     previewContent.style.display = 'none';
     bulkPanel.style.display = 'flex';
@@ -78,3 +93,7 @@ export function clearSelection() {
   refreshSelectionVisuals();
   updateRightPanel();
 }
+
+$('file-grid').addEventListener('click', e => {
+  if (!e.target.closest('.file-card, .file-row')) clearSelection();
+});

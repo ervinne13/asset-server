@@ -53,6 +53,26 @@ Open `http://forge:3000` from your Mac.
 | `Backspace` | Soft-delete selected file (when a file is selected) |
 | `Space` | Play / pause video preview |
 
+## Make it a service
+
+Run on boot with systemd. Copy the sample unit file and enable it:
+
+```bash
+sudo cp scripts/asset-server.service /etc/systemd/system/asset-server.service
+sudo systemctl daemon-reload
+sudo systemctl enable asset-server
+sudo systemctl start asset-server
+```
+
+The unit file runs as user `ervinne` from `/home/ervinne/projects/asset-server`. Edit those if your setup differs.
+
+To allow `deploy.sh` to restart the service without a password prompt:
+
+```bash
+echo 'ervinne ALL=(ALL) NOPASSWD: /bin/systemctl restart asset-server' \
+  | sudo tee /etc/sudoers.d/asset-server
+```
+
 ## Usage notes
 
 - **Move to…** — opens a folder tree rooted at your library. Expand folders with the arrow, click to select destination, confirm.

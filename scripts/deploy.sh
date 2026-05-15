@@ -45,4 +45,7 @@ $SSHPASS_PREFIX rsync -az --progress \
 echo "→ Installing dependencies"
 $SSHPASS_PREFIX ssh $SSH_ARGS "$DEST" "bash -l -c 'cd $REMOTE_PATH && npm install --omit=dev'"
 
+echo "→ Restarting service"
+$SSHPASS_PREFIX ssh $SSH_ARGS "$DEST" "sudo systemctl restart asset-server"
+
 echo "✓ Deployed → http://$SSH_HOST:${SERVER_PORT:-3000}"

@@ -4,6 +4,7 @@ import { $, toast } from './helpers.js';
 import { selectFile, clearSelection, updateRightPanel } from './selection.js';
 import { clearPreview } from './preview.js';
 import { renderFiles } from './files.js';
+import { navigate } from './router.js';
 
 export async function softDelete(item) {
   if (!item) return;
@@ -133,9 +134,44 @@ export function showUndoToast(msg, onUndo, duration = 5000) {
   };
 }
 
+async function deleteCurrentFolder() {
+  const folderPath = state.currentPath;
+  if (!folderPath) return;
+
+  const folderName = folderPath.split('/').pop() || folderPath;
+  const parentPath = folderPath.split('/').slice(0, -1).join('/');
+
+  let result;
+  try {
+    result = await api.post('/api/trash', { path: folderPath });
+  } catch (err) {
+    toast(`Delete failed: ${err.message}`, 'danger');
+    return;
+  }
+
+  await navigate(parentPath);
+
+  let undone = false;
+  const purgeTimer = setTimeout(async () => {
+    if (!undone) await api.post('/api/trash/purge', { trashPath: result.trashPath }).catch(() => {});
+  }, 5200);
+
+  showUndoToast(`Deleted: ${folderName}`, async () => {
+    undone = true;
+    clearTimeout(purgeTimer);
+    try {
+      await api.post('/api/trash/restore', { trashPath: result.trashPath, originalPath: result.originalPath });
+      await navigate(folderPath);
+    } catch (err) {
+      toast(`Restore failed: ${err.message}`, 'danger');
+    }
+  });
+}
+
 // ── Button wiring ─────────────────────────────────────────────────────────────
 
 $('btn-delete').onclick = () => softDelete(state.selectedFile);
+$('btn-delete-folder').onclick = deleteCurrentFolder;
 
 $('btn-bulk-delete').onclick = () => {
   const items = state.currentItems.filter(i => state.selectedFiles.has(i.path));

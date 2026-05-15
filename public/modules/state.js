@@ -6,6 +6,7 @@ export const state = {
   currentItems: [],
   view: 'grid',
   folderViews: {},
+  scrollPositions: {},
   bookmarks: [],
   config: null,
   moveDestPath: null,
