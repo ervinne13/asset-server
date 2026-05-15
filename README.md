@@ -2,6 +2,8 @@
 
 Browser-based file explorer for managing ComfyUI outputs and asset libraries. Runs on your Linux server, accessed from any browser on the local network.
 
+![Asset Server screenshot](docs/screenshot.png)
+
 ## Setup
 
 ```bash

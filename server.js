@@ -119,6 +119,19 @@ app.post('/api/move', async (req, res) => {
   }
 });
 
+// ── Make directory ────────────────────────────────────────────────────────────
+
+app.post('/api/mkdir', async (req, res) => {
+  const { path: dirPath } = req.body;
+  if (!isAllowedPath(dirPath)) return res.status(403).json({ error: 'path not allowed' });
+  try {
+    await fsp.mkdir(dirPath);
+    res.json({ ok: true });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 // ── Trash (soft delete with undo) ─────────────────────────────────────────────
 
 // Moves src → dest, handling cross-filesystem (EXDEV) for both files and dirs
