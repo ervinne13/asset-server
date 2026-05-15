@@ -556,6 +556,19 @@ body {
   color: var(--sl-color-neutral-900);
 }
 
+.move-tree-label::part(label) {
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--sl-color-neutral-400);
+  padding-block: 6px 2px;
+}
+
+.move-tree-icon {
+  font-size: 11px;
+  color: var(--sl-color-primary-500);
+}
+
 #move-tree {
   min-height: 200px;
   max-height: 55vh;

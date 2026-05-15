@@ -26,7 +26,7 @@ export function updateRightPanel() {
       const count = state.currentItems.length;
       $('folder-panel-name').textContent = name;
       $('folder-panel-info').textContent = count === 0 ? 'Empty' : `${count} item${count !== 1 ? 's' : ''}`;
-      $('folder-panel-actions').style.display = count === 0 ? 'flex' : 'none';
+      $('btn-delete-folder').style.display = count === 0 ? '' : 'none';
     } else {
       folderPanel.style.display = 'none';
       previewEmpty.style.display = '';

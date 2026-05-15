@@ -100,8 +100,11 @@
           <div class="preview-name" id="folder-panel-name"></div>
           <div class="preview-info" id="folder-panel-info"></div>
         </div>
-        <div class="preview-actions" id="folder-panel-actions" style="display:none">
-          <button class="action-btn danger" id="btn-delete-folder">
+        <div class="preview-actions" id="folder-panel-actions">
+          <button class="action-btn" id="btn-new-folder">
+            <sl-icon name="folder-plus"></sl-icon> New folder
+          </button>
+          <button class="action-btn danger" id="btn-delete-folder" style="display:none">
             <sl-icon name="trash"></sl-icon> Delete folder
           </button>
         </div>
@@ -142,7 +145,10 @@
   <sl-dialog label="Move to…" id="move-dialog" style="--width:480px">
     <div class="move-dest-label">Destination: <span id="move-dest-display">—</span></div>
     <sl-tree id="move-tree" selection="single"></sl-tree>
-    <div slot="footer" style="display:flex;gap:8px;justify-content:flex-end">
+    <div slot="footer" style="display:flex;gap:8px;align-items:center;width:100%">
+      <sl-button variant="default" id="btn-new-folder-move" style="margin-right:auto">
+        <sl-icon slot="prefix" name="folder-plus"></sl-icon>New folder here
+      </sl-button>
       <sl-button variant="default" id="btn-move-cancel">Cancel</sl-button>
       <sl-button variant="primary" id="btn-move-confirm">Move Here</sl-button>
     </div>

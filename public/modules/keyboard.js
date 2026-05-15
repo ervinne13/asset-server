@@ -1,9 +1,9 @@
 import { state } from './state.js';
-import { api } from './api.js';
-import { isVideo } from './helpers.js';
+import { $, isVideo } from './helpers.js';
 import { selectFile, clearSelection, refreshSelectionVisuals, updateRightPanel } from './selection.js';
-import { navigate } from './router.js';
+import { navigate, silentRefresh } from './router.js';
 import { softDelete, bulkSoftDelete } from './trash.js';
+import { createFolderAt } from './move.js';
 import { openLightbox, closeLightbox, stepLightbox, updateLightbox, playLightboxVideo, toggleLightboxVideo } from './lightbox.js';
 
 // ── Keyboard shortcuts ────────────────────────────────────────────────────────
@@ -138,6 +138,13 @@ document.addEventListener('keydown', e => {
       if (state.selectedFile && !state.selectedFile.isDir) {
         openLightbox(state.selectedFile);
         if (isVideo(state.selectedFile.name)) playLightboxVideo();
+      }
+      break;
+
+    case 'n':
+      if ((e.ctrlKey || e.metaKey) && state.currentPath && !$('move-dialog').open) {
+        e.preventDefault();
+        createFolderAt(state.currentPath).then(created => { if (created) silentRefresh(); });
       }
       break;
 
