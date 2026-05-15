@@ -123,6 +123,16 @@ export function stepLightbox(dir) {
 }
 
 // Re-sync display after an external change (e.g. delete advanced selection)
+export function playLightboxVideo() {
+  if (videoEl && videoEl.src && videoEl.style.display !== 'none') videoEl.play().catch(() => {});
+}
+
+export function toggleLightboxVideo() {
+  if (!videoEl || !videoEl.src || videoEl.style.display === 'none') return false;
+  videoEl.paused ? videoEl.play() : videoEl.pause();
+  return true;
+}
+
 export function updateLightbox() {
   if (!state.photoMode) return;
   const item = state.selectedFile;

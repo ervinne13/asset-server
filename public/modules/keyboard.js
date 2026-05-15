@@ -4,7 +4,7 @@ import { isVideo } from './helpers.js';
 import { selectFile, clearSelection, refreshSelectionVisuals, updateRightPanel } from './selection.js';
 import { navigate } from './router.js';
 import { softDelete, bulkSoftDelete } from './trash.js';
-import { openLightbox, closeLightbox, stepLightbox, updateLightbox } from './lightbox.js';
+import { openLightbox, closeLightbox, stepLightbox, updateLightbox, playLightboxVideo, toggleLightboxVideo } from './lightbox.js';
 
 // ── Keyboard shortcuts ────────────────────────────────────────────────────────
 //
@@ -98,8 +98,11 @@ document.addEventListener('keydown', e => {
         break;
       case 'Escape':
       case 'Enter':
-      case ' ':
         closeLightbox();
+        break;
+      case ' ':
+        e.preventDefault();
+        if (!toggleLightboxVideo()) closeLightbox();
         break;
       case 'Delete':
       case 'd':
@@ -108,14 +111,6 @@ document.addEventListener('keydown', e => {
           softDelete(state.selectedFile).then(() => updateLightbox());
         }
         break;
-      case ' ': {
-        const video = document.getElementById('lb-video');
-        if (video && video.src && video.style.display !== 'none') {
-          e.preventDefault();
-          video.paused ? video.play() : video.pause();
-        }
-        break;
-      }
     }
     return;
   }
@@ -132,13 +127,17 @@ document.addEventListener('keydown', e => {
       break;
 
     case 'Enter':
-    case ' ':
       if (state.selectedFile) {
-        if (state.selectedFile.isDir) {
-          navigate(state.selectedFile.path);
-        } else {
-          openLightbox(state.selectedFile);
-        }
+        if (state.selectedFile.isDir) navigate(state.selectedFile.path);
+        else openLightbox(state.selectedFile);
+      }
+      break;
+
+    case ' ':
+      e.preventDefault();
+      if (state.selectedFile && !state.selectedFile.isDir) {
+        openLightbox(state.selectedFile);
+        if (isVideo(state.selectedFile.name)) playLightboxVideo();
       }
       break;
 
@@ -174,14 +173,5 @@ document.addEventListener('keydown', e => {
       }
       break;
 
-    // ── Video (preview panel)
-    case ' ': {
-      const video = document.getElementById('preview-video');
-      if (state.selectedFile && isVideo(state.selectedFile.name) && video.src) {
-        e.preventDefault();
-        video.paused ? video.play() : video.pause();
-      }
-      break;
-    }
   }
 });
