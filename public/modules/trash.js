@@ -171,6 +171,7 @@ async function deleteCurrentFolder() {
 // ── Button wiring ─────────────────────────────────────────────────────────────
 
 $('btn-delete').onclick = () => softDelete(state.selectedFile);
+$('btn-preview-trash').onclick = () => softDelete(state.selectedFile);
 $('btn-delete-folder').onclick = deleteCurrentFolder;
 
 $('btn-bulk-delete').onclick = () => {

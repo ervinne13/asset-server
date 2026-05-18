@@ -8,6 +8,7 @@ import { renderFiles } from './modules/files.js';
 // Side-effect imports — each module wires its own event handlers
 import './modules/mobile.js';
 import './modules/preview.js';
+import './modules/tags.js';
 import './modules/search.js';
 import './modules/move.js';
 import './modules/trash.js';

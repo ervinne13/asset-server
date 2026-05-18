@@ -3,6 +3,7 @@ const fsp = require('fs/promises');
 const fs = require('fs');
 const path = require('path');
 const os = require('os');
+const { execFileSync } = require('child_process');
 
 const app = express();
 const CONFIG_PATH = path.join(__dirname, 'config.json');
@@ -31,6 +32,43 @@ function isAllowedPath(p) {
 app.get('/api/config', (req, res) => {
   res.json(loadConfig());
 });
+
+// ── Tag helpers (via Python 3 built-in os.getxattr / os.setxattr) ────────────
+
+const PY_READ = [
+  'import os,sys,json',
+  'try:',
+  '  v=os.getxattr(sys.argv[1],"user.xdg.tags").decode()',
+  '  print(json.dumps([t.strip() for t in v.split(",") if t.strip()]))',
+  'except:',
+  '  print("[]")',
+].join('\n');
+
+const PY_WRITE = [
+  'import os,sys',
+  'p,v=sys.argv[1],sys.argv[2]',
+  'if v: os.setxattr(p,"user.xdg.tags",v.encode())',
+  'else:',
+  '  try: os.removexattr(p,"user.xdg.tags")',
+  '  except: pass',
+].join('\n');
+
+function readTags(filePath) {
+  try {
+    const out = execFileSync('python3', ['-c', PY_READ, filePath],
+      { encoding: 'utf8', timeout: 2000 });
+    return JSON.parse(out.trim());
+  } catch { return []; }
+}
+
+function writeTags(filePath, tags) {
+  try {
+    execFileSync('python3', ['-c', PY_WRITE, filePath, tags.join(',')],
+      { timeout: 2000 });
+  } catch (err) {
+    console.warn(`writeTags failed for ${filePath}:`, err.message);
+  }
+}
 
 // ── Directory listing ─────────────────────────────────────────────────────────
 
@@ -105,8 +143,10 @@ app.post('/api/move', async (req, res) => {
         await fsp.rename(src, dest);
       } catch (err) {
         if (err.code === 'EXDEV') {
-          // cross-filesystem move: copy then delete
+          // cross-filesystem move: copy then delete (xattrs not preserved by copyFile)
+          const tags = readTags(src);
           await fsp.copyFile(src, dest);
+          if (tags.length) writeTags(dest, tags);
           await fsp.unlink(src);
         } else {
           throw err;
@@ -198,6 +238,65 @@ app.get('/files/*', (req, res) => {
   const filePath = '/' + req.params[0];
   if (!isAllowedPath(filePath)) return res.status(403).send('Forbidden');
   res.sendFile(filePath, { headers: { 'Cache-Control': 'public, max-age=86400' } });
+});
+
+// ── Tags ──────────────────────────────────────────────────────────────────────
+
+app.get('/api/tags', (req, res) => {
+  const filePath = req.query.path;
+  if (!filePath) return res.status(400).json({ error: 'path required' });
+  if (!isAllowedPath(filePath)) return res.status(403).json({ error: 'path not allowed' });
+  res.json({ tags: readTags(filePath) });
+});
+
+app.post('/api/tags', (req, res) => {
+  const { path: filePath, tags } = req.body;
+  if (!filePath || !Array.isArray(tags)) return res.status(400).json({ error: 'path and tags[] required' });
+  if (!isAllowedPath(filePath)) return res.status(403).json({ error: 'path not allowed' });
+  writeTags(filePath, tags);
+  res.json({ ok: true });
+});
+
+app.get('/api/tags/vocab', async (req, res) => {
+  const config = loadConfig();
+  const roots = Object.values(config.roots || {}).filter(Boolean);
+  const filePaths = [];
+  const LIMIT = 1000;
+
+  async function walk(dir) {
+    if (filePaths.length >= LIMIT) return;
+    let items;
+    try { items = await fsp.readdir(dir, { withFileTypes: true }); } catch { return; }
+    for (const item of items) {
+      if (filePaths.length >= LIMIT) break;
+      if (item.name.startsWith('.')) continue;
+      const full = path.join(dir, item.name);
+      if (item.isDirectory()) await walk(full);
+      else filePaths.push(full);
+    }
+  }
+
+  try {
+    for (const root of roots) await walk(root);
+
+    const pyScript = [
+      'import os,sys,json',
+      'paths=json.loads(sys.stdin.read())',
+      'tags=set()',
+      'for p in paths:',
+      '  try:',
+      '    v=os.getxattr(p,"user.xdg.tags").decode()',
+      '    [tags.add(t.strip()) for t in v.split(",") if t.strip()]',
+      '  except: pass',
+      'print(json.dumps(sorted(tags)))',
+    ].join('\n');
+
+    const out = execFileSync('python3', ['-c', pyScript],
+      { input: JSON.stringify(filePaths), encoding: 'utf8', timeout: 10000 });
+    res.json({ tags: JSON.parse(out.trim()) });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
 });
 
 // ── Index: rebuild ────────────────────────────────────────────────────────────

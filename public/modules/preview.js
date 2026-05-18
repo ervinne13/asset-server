@@ -1,6 +1,6 @@
 import { state } from './state.js';
 import { api } from './api.js';
-import { $, isImg, isVideo, fmtSize, fmtDate } from './helpers.js';
+import { $, isImg, isVideo, fmtSize, fmtDate, toast } from './helpers.js';
 
 export function showPreview(item) {
   $('preview-empty').style.display = 'none';
@@ -28,6 +28,7 @@ export function showPreview(item) {
     $('preview-info').textContent   = 'Folder';
     $('btn-download').style.display = 'none';
     $('btn-move').style.display     = 'none';
+    $('preview-toolbar').style.display = 'none';
   } else {
     $('btn-download').style.display = '';
     $('btn-move').style.display     = '';
@@ -46,6 +47,9 @@ export function showPreview(item) {
     const dl    = $('btn-download');
     dl.href     = api.downloadUrl(item.path);
     dl.download = item.name;
+
+    const showToolbar = isImg(item.name) || isVideo(item.name);
+    $('preview-toolbar').style.display = showToolbar ? 'flex' : 'none';
   }
 }
 
@@ -53,10 +57,41 @@ export function clearPreview() {
   $('preview-empty').style.display = '';
   $('preview-content').style.display = 'none';
   $('bulk-panel').style.display = 'none';
+  $('preview-toolbar').style.display = 'none';
   const video = $('preview-video');
   video.pause();
   video.src = '';
 }
+
+// ── Copy to clipboard ─────────────────────────────────────────────────────────
+
+$('btn-copy-file').addEventListener('click', async () => {
+  const item = state.selectedFile;
+  if (!item) return;
+
+  if (isImg(item.name)) {
+    try {
+      const resp = await fetch(api.fileUrl(item.path, item.mtime));
+      const blob = await resp.blob();
+      await navigator.clipboard.write([new ClipboardItem({ [blob.type]: blob })]);
+      toast('Copied to clipboard');
+    } catch {
+      try {
+        await navigator.clipboard.writeText(location.origin + api.fileUrl(item.path, item.mtime));
+        toast('URL copied (HTTPS required to copy image data)');
+      } catch {
+        toast('Copy failed — clipboard not available', 'warning');
+      }
+    }
+  } else {
+    try {
+      await navigator.clipboard.writeText(location.origin + api.fileUrl(item.path, item.mtime));
+      toast('URL copied to clipboard');
+    } catch {
+      toast('Copy failed — clipboard not available', 'warning');
+    }
+  }
+});
 
 // Click preview image → open full-size in new tab
 $('preview-img').addEventListener('click', () => {

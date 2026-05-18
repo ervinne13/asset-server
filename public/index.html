@@ -22,6 +22,7 @@
   <link rel="modulepreload" href="/modules/keyboard.js" />
   <link rel="modulepreload" href="/modules/lightbox.js" />
   <link rel="modulepreload" href="/modules/mobile.js" />
+  <link rel="modulepreload" href="/modules/tags.js" />
 </head>
 <body>
   <div class="shell">
@@ -117,6 +118,21 @@
         <div class="preview-media-wrap" id="preview-media-wrap">
           <img id="preview-img" src="" alt="" />
           <video id="preview-video" controls loop style="display:none"></video>
+          <div id="preview-toolbar" class="preview-toolbar" style="display:none">
+            <div class="preview-toolbar-left">
+              <button id="btn-copy-file" class="toolbar-btn" title="Copy to clipboard">
+                <sl-icon name="clipboard"></sl-icon>
+              </button>
+              <button id="btn-tag-open" class="toolbar-btn" title="Edit tags">
+                <sl-icon name="tag"></sl-icon>
+              </button>
+            </div>
+            <div class="preview-toolbar-right">
+              <button id="btn-preview-trash" class="toolbar-btn toolbar-btn-danger" title="Delete">
+                <sl-icon name="trash"></sl-icon>
+              </button>
+            </div>
+          </div>
         </div>
         <div class="preview-meta">
           <div class="preview-name" id="preview-name"></div>
@@ -151,6 +167,18 @@
       </sl-button>
       <sl-button variant="default" id="btn-move-cancel">Cancel</sl-button>
       <sl-button variant="primary" id="btn-move-confirm">Move Here</sl-button>
+    </div>
+  </sl-dialog>
+
+  <!-- ── Tag Dialog ── -->
+  <sl-dialog label="Tags" id="tag-dialog" style="--width:420px">
+    <div id="tag-chips" class="tag-chips"></div>
+    <div class="tag-input-wrap">
+      <input id="tag-input" class="tag-input" placeholder="Add tag… (Enter or ,)" autocomplete="off" />
+      <div id="tag-suggestions" class="tag-suggestions" style="display:none"></div>
+    </div>
+    <div slot="footer" style="display:flex;justify-content:flex-end">
+      <sl-button variant="primary" id="btn-tag-done">Done</sl-button>
     </div>
   </sl-dialog>
 
