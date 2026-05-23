@@ -1,6 +1,7 @@
 import { state } from './state.js';
 import { api } from './api.js';
 import { $, isImg, isVideo, fmtSize, fmtDate, toast } from './helpers.js';
+import { openGenerateDialog } from './generate.js';
 
 export function showPreview(item) {
   $('preview-empty').style.display = 'none';
@@ -50,6 +51,9 @@ export function showPreview(item) {
 
     const showToolbar = isImg(item.name) || isVideo(item.name);
     $('preview-toolbar').style.display = showToolbar ? 'flex' : 'none';
+    const isPng = item.name.toLowerCase().endsWith('.png');
+    $('btn-prompt-open').style.display = isPng ? '' : 'none';
+    $('btn-generate-open').style.display = isImg(item.name) ? '' : 'none';
   }
 }
 
@@ -58,6 +62,8 @@ export function clearPreview() {
   $('preview-content').style.display = 'none';
   $('bulk-panel').style.display = 'none';
   $('preview-toolbar').style.display = 'none';
+  $('btn-prompt-open').style.display = 'none';
+  $('btn-generate-open').style.display = 'none';
   const video = $('preview-video');
   video.pause();
   video.src = '';
@@ -65,7 +71,7 @@ export function clearPreview() {
 
 // ── Copy to clipboard ─────────────────────────────────────────────────────────
 
-$('btn-copy-file').addEventListener('click', async () => {
+export async function copySelectedToClipboard() {
   const item = state.selectedFile;
   if (!item) return;
 
@@ -91,7 +97,10 @@ $('btn-copy-file').addEventListener('click', async () => {
       toast('Copy failed — clipboard not available', 'warning');
     }
   }
-});
+}
+
+$('btn-copy-file').addEventListener('click', copySelectedToClipboard);
+$('btn-generate-open').addEventListener('click', () => openGenerateDialog(state.selectedFile));
 
 // Click preview image → open full-size in new tab
 $('preview-img').addEventListener('click', () => {

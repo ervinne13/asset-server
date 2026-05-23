@@ -3,15 +3,29 @@ const fsp = require('fs/promises');
 const fs = require('fs');
 const path = require('path');
 const os = require('os');
+const http = require('http');
 const { execFileSync } = require('child_process');
 
 const app = express();
 const CONFIG_PATH = path.join(__dirname, 'config.json');
 const INDEX_DIR = path.join(__dirname, 'index');
 const TRASH_DIR = path.join(os.tmpdir(), 'asset-server-trash');
+let APP_VERSION;
+try {
+  APP_VERSION = fs.readFileSync(path.join(__dirname, 'VERSION'), 'utf8').trim();
+} catch {
+  APP_VERSION = Date.now().toString();
+}
 
 app.use(express.json());
-app.use(express.static(path.join(__dirname, 'public')));
+// JS/CSS: always revalidate so deploys are picked up immediately
+app.use((req, res, next) => {
+  if (req.path.endsWith('.js') || req.path.endsWith('.css')) {
+    res.setHeader('Cache-Control', 'no-cache');
+  }
+  next();
+});
+app.use(express.static(path.join(__dirname, 'public'), { index: false }));
 
 // ── Config ────────────────────────────────────────────────────────────────────
 
@@ -240,6 +254,73 @@ app.get('/files/*', (req, res) => {
   res.sendFile(filePath, { headers: { 'Cache-Control': 'public, max-age=86400' } });
 });
 
+// ── ComfyUI workflow prompt extraction ───────────────────────────────────────
+
+const CLIP_TYPES = new Set([
+  'CLIPTextEncode', 'CLIPTextEncodeSDXL', 'CLIPTextEncodeSDXLRefiner',
+  'smZ CLIPTextEncode', 'BNK_CLIPTextEncodeAdvanced',
+]);
+
+function readPngTextChunks(filePath) {
+  let buf;
+  try { buf = fs.readFileSync(filePath); } catch { return {}; }
+  // PNG signature
+  if (buf.length < 8 || buf.readUInt32BE(0) !== 0x89504e47) return {};
+  const result = {};
+  let offset = 8;
+  while (offset + 12 <= buf.length) {
+    const length = buf.readUInt32BE(offset);
+    const type   = buf.toString('ascii', offset + 4, offset + 8);
+    if (type === 'IEND') break;
+    if (type === 'tEXt' && offset + 8 + length <= buf.length) {
+      const data    = buf.subarray(offset + 8, offset + 8 + length);
+      const nullIdx = data.indexOf(0);
+      if (nullIdx !== -1) {
+        const key = data.toString('ascii', 0, nullIdx);
+        result[key] = data.toString('utf8', nullIdx + 1);
+      }
+    }
+    offset += 12 + length;
+  }
+  return result;
+}
+
+function extractPrompts(workflowJson) {
+  try {
+    const wf = JSON.parse(workflowJson);
+    const prompts = [];
+    if (Array.isArray(wf.nodes)) {
+      // UI workflow format (drag-and-drop into ComfyUI loads this)
+      for (const node of wf.nodes) {
+        if (CLIP_TYPES.has(node.type) && node.widgets_values?.length) {
+          const text = node.widgets_values[0];
+          if (typeof text === 'string' && text.trim()) {
+            prompts.push({ title: node.title || node.type, text: text.trim() });
+          }
+        }
+      }
+    } else {
+      // API prompt format (fallback)
+      for (const node of Object.values(wf)) {
+        if (CLIP_TYPES.has(node.class_type) && typeof node.inputs?.text === 'string' && node.inputs.text.trim()) {
+          prompts.push({ title: node._meta?.title || node.class_type, text: node.inputs.text.trim() });
+        }
+      }
+    }
+    return prompts;
+  } catch { return []; }
+}
+
+app.get('/api/prompt', (req, res) => {
+  const filePath = req.query.path;
+  if (!filePath) return res.status(400).json({ error: 'path required' });
+  if (!isAllowedPath(filePath)) return res.status(403).json({ error: 'path not allowed' });
+  if (path.extname(filePath).toLowerCase() !== '.png') return res.json({ prompts: [] });
+  const chunks = readPngTextChunks(filePath);
+  const source = chunks.workflow || chunks.prompt || null;
+  res.json({ prompts: source ? extractPrompts(source) : [] });
+});
+
 // ── Tags ──────────────────────────────────────────────────────────────────────
 
 app.get('/api/tags', (req, res) => {
@@ -373,10 +454,87 @@ app.get('/api/index/search', (req, res) => {
   res.json({ folders: folders.slice(0, 100), files: files.slice(0, 300), root: index.root, indexed: true });
 });
 
-// ── SPA fallback (serve index.html for /staging/*, /library/*, etc.) ─────────
+// ── ComfyUI: generate (Qwen image edit) ──────────────────────────────────────
+
+function comfyPost(baseUrl, urlPath, body) {
+  return new Promise((resolve, reject) => {
+    const json = JSON.stringify(body);
+    const u = new URL(urlPath, baseUrl);
+    const req = http.request({
+      hostname: u.hostname,
+      port: parseInt(u.port) || 80,
+      path: u.pathname,
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Content-Length': Buffer.byteLength(json) },
+    }, res => {
+      let data = '';
+      res.on('data', c => { data += c; });
+      res.on('end', () => { try { resolve(JSON.parse(data)); } catch { resolve({ raw: data }); } });
+    });
+    req.on('error', reject);
+    req.write(json);
+    req.end();
+  });
+}
+
+app.post('/api/comfyui/generate', async (req, res) => {
+  const { filePath, positiveBody, negativePrompt, seed } = req.body;
+  if (!filePath) return res.status(400).json({ error: 'filePath required' });
+  if (!isAllowedPath(filePath)) return res.status(403).json({ error: 'path not allowed' });
+
+  const config = loadConfig();
+  const comfyUrl = config.comfyuiUrl || 'http://192.168.0.110:8188';
+
+  // Upload image to ComfyUI input folder
+  let uploadResult;
+  try {
+    const out = execFileSync('curl', ['-s', '-F', `image=@${filePath}`, `${comfyUrl}/api/upload/image`],
+      { encoding: 'utf8', timeout: 30000 });
+    uploadResult = JSON.parse(out);
+  } catch (err) {
+    return res.status(500).json({ error: `Upload failed: ${err.message}` });
+  }
+
+  const uploadedName = uploadResult.subfolder
+    ? `${uploadResult.subfolder}/${uploadResult.name}`
+    : uploadResult.name;
+
+  // Load and clone workflow template
+  const templatePath = path.join(__dirname, 'workflows', 'qwen-image-edit.api.json');
+  const prompt = JSON.parse(fs.readFileSync(templatePath, 'utf8'));
+
+  prompt['47'].inputs.image = uploadedName;
+  prompt['62'].inputs.value = positiveBody || '';
+  if (negativePrompt !== undefined && negativePrompt !== null) {
+    prompt['48'].inputs.value = negativePrompt;
+  }
+  prompt['46'].inputs.seed = (seed != null && !isNaN(seed))
+    ? seed
+    : Math.floor(Math.random() * 2 ** 32);
+
+  const now = new Date();
+  const d = now.toISOString().slice(0, 10).replace(/-/g, '');
+  const t = now.toTimeString().slice(0, 5).replace(':', '');
+  prompt['45'].inputs.filename_prefix = `${d}/qwen-${d}${t}`;
+
+  try {
+    const result = await comfyPost(comfyUrl, '/api/prompt', { prompt });
+    res.json({ ok: true, promptId: result.prompt_id });
+  } catch (err) {
+    res.status(500).json({ error: `ComfyUI submit failed: ${err.message}` });
+  }
+});
+
+// ── SPA fallback — inject version into asset URLs for cache-busting ──────────
+
+const INDEX_HTML = path.join(__dirname, 'public', 'index.html');
 
 app.get('*', (req, res) => {
-  res.sendFile(path.join(__dirname, 'public', 'index.html'));
+  let html = fs.readFileSync(INDEX_HTML, 'utf8');
+  // Stamp ?v= on all local JS and CSS references so each deploy gets fresh assets
+  html = html.replace(/((?:src|href)=")(\/[^"]+\.(?:js|css))(")/g,
+    `$1$2?v=${APP_VERSION}$3`);
+  res.type('html').set('Cache-Control', 'no-cache').send(html);
 });
 
 // ── Start ─────────────────────────────────────────────────────────────────────

@@ -24,7 +24,9 @@ export const api = {
   search: q => api.get(`/api/index/search?q=${encodeURIComponent(q)}`),
   downloadUrl: p => `/api/download?path=${encodeURIComponent(p)}`,
   fileUrl: (p, mtime) => `/files${p}${mtime ? `?t=${+new Date(mtime)}` : ''}`,
+  getPrompt: p => api.get(`/api/prompt?path=${encodeURIComponent(p)}`),
   getTags: p => api.get(`/api/tags?path=${encodeURIComponent(p)}`),
   saveTags: (p, tags) => api.post('/api/tags', { path: p, tags }),
   tagVocab: () => api.get('/api/tags/vocab'),
+  generate: body => api.post('/api/comfyui/generate', body),
 };

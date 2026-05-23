@@ -23,6 +23,8 @@
   <link rel="modulepreload" href="/modules/lightbox.js" />
   <link rel="modulepreload" href="/modules/mobile.js" />
   <link rel="modulepreload" href="/modules/tags.js" />
+  <link rel="modulepreload" href="/modules/prompt.js" />
+  <link rel="modulepreload" href="/modules/generate.js" />
 </head>
 <body>
   <div class="shell">
@@ -126,6 +128,12 @@
               <button id="btn-tag-open" class="toolbar-btn" title="Edit tags">
                 <sl-icon name="tag"></sl-icon>
               </button>
+              <button id="btn-prompt-open" class="toolbar-btn" title="Show workflow prompts" style="display:none">
+                <sl-icon name="stars"></sl-icon>
+              </button>
+              <button id="btn-generate-open" class="toolbar-btn" title="Edit with Qwen AI" style="display:none">
+                <sl-icon name="pencil-fill"></sl-icon>
+              </button>
             </div>
             <div class="preview-toolbar-right">
               <button id="btn-preview-trash" class="toolbar-btn toolbar-btn-danger" title="Delete">
@@ -170,6 +178,14 @@
     </div>
   </sl-dialog>
 
+  <!-- ── Prompt Dialog ── -->
+  <sl-dialog label="Workflow Prompts" id="prompt-dialog" style="--width:520px">
+    <div id="prompt-content" class="prompt-content"></div>
+    <div slot="footer" style="display:flex;justify-content:flex-end">
+      <sl-button variant="primary" id="btn-prompt-close">Close</sl-button>
+    </div>
+  </sl-dialog>
+
   <!-- ── Tag Dialog ── -->
   <sl-dialog label="Tags" id="tag-dialog" style="--width:420px">
     <div id="tag-chips" class="tag-chips"></div>
@@ -181,6 +197,38 @@
       <sl-button variant="primary" id="btn-tag-done">Done</sl-button>
     </div>
   </sl-dialog>
+
+  <!-- ── Generate Page (full-screen overlay) ── -->
+  <div id="generate-page" class="generate-page" style="display:none">
+    <div class="gen-header">
+      <button id="gen-back" class="gen-back-btn" title="Cancel">
+        <sl-icon name="arrow-left"></sl-icon>
+      </button>
+      <span class="gen-title">Edit with Qwen</span>
+      <span id="gen-status" class="gen-status"></span>
+    </div>
+    <div class="gen-img-wrap">
+      <img id="gen-img" src="" alt="" />
+    </div>
+    <div class="gen-body">
+      <label class="gen-label">Edit prompt</label>
+      <textarea id="gen-positive" class="gen-textarea" placeholder="Describe the scene or edit…"></textarea>
+      <details class="gen-advanced">
+        <summary>Advanced options</summary>
+        <div class="gen-advanced-body">
+          <label class="gen-label">Negative prompt</label>
+          <textarea id="gen-negative" class="gen-textarea gen-textarea-sm" rows="3"></textarea>
+          <label class="gen-label">Seed <small>(blank = random)</small></label>
+          <input id="gen-seed" type="number" class="gen-seed-input" placeholder="random" />
+        </div>
+      </details>
+    </div>
+    <div class="gen-footer">
+      <sl-button variant="primary" id="btn-gen-submit" size="large" style="width:100%">
+        <sl-icon slot="prefix" name="pencil-fill"></sl-icon>Generate
+      </sl-button>
+    </div>
+  </div>
 
   <script type="module" src="/app.js"></script>
 </body>

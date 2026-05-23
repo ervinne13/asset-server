@@ -3,8 +3,12 @@ import { api } from './api.js';
 import { isImg, isVideo } from './helpers.js';
 import { selectFile } from './selection.js';
 import { softDelete } from './trash.js'; // circular via files.js — safe, all exports are hoisted functions
+import { copySelectedToClipboard } from './preview.js';
+import { openTagDialog } from './tags.js';
+import { openPromptDialog } from './prompt.js';
+import { openGenerateDialog } from './generate.js';
 
-let imgEl, videoEl, nameEl, counterEl, prevBtn, nextBtn;
+let imgEl, videoEl, nameEl, counterEl, prevBtn, nextBtn, lbPromptBtn, lbGenerateBtn;
 
 // Lazy DOM build — only creates the overlay on first open
 function buildDOM() {
@@ -22,6 +26,20 @@ function buildDOM() {
       <button class="lb-nav lb-next" id="lb-next">&#8250;</button>
     </div>
     <div class="lb-bar">
+      <div class="lb-actions">
+        <button class="lb-action-btn" id="lb-copy" title="Copy to clipboard">
+          <sl-icon name="clipboard"></sl-icon>
+        </button>
+        <button class="lb-action-btn" id="lb-tag" title="Edit tags">
+          <sl-icon name="tag"></sl-icon>
+        </button>
+        <button class="lb-action-btn" id="lb-prompt" title="Show workflow prompts" style="display:none">
+          <sl-icon name="stars"></sl-icon>
+        </button>
+        <button class="lb-action-btn" id="lb-generate" title="Edit with Qwen AI" style="display:none">
+          <sl-icon name="pencil-fill"></sl-icon>
+        </button>
+      </div>
       <span id="lb-name"></span>
       <span id="lb-counter"></span>
       <button class="lb-delete" id="lb-delete" title="Delete (d)">
@@ -31,17 +49,23 @@ function buildDOM() {
   `;
   document.body.appendChild(overlay);
 
-  imgEl     = document.getElementById('lb-img');
-  videoEl   = document.getElementById('lb-video');
-  nameEl    = document.getElementById('lb-name');
-  counterEl = document.getElementById('lb-counter');
-  prevBtn   = document.getElementById('lb-prev');
-  nextBtn   = document.getElementById('lb-next');
+  imgEl      = document.getElementById('lb-img');
+  videoEl    = document.getElementById('lb-video');
+  nameEl     = document.getElementById('lb-name');
+  counterEl  = document.getElementById('lb-counter');
+  prevBtn    = document.getElementById('lb-prev');
+  nextBtn    = document.getElementById('lb-next');
+  lbPromptBtn    = document.getElementById('lb-prompt');
+  lbGenerateBtn  = document.getElementById('lb-generate');
 
   document.getElementById('lb-close').onclick  = closeLightbox;
   document.getElementById('lb-delete').onclick = () => {
     if (state.selectedFile) softDelete(state.selectedFile).then(() => updateLightbox());
   };
+  document.getElementById('lb-copy').onclick   = () => copySelectedToClipboard();
+  document.getElementById('lb-tag').onclick    = () => openTagDialog(state.selectedFile);
+  document.getElementById('lb-prompt').onclick    = () => openPromptDialog(state.selectedFile);
+  document.getElementById('lb-generate').onclick  = () => { closeLightbox(); openGenerateDialog(state.selectedFile); };
   prevBtn.onclick = () => stepLightbox(-1);
   nextBtn.onclick = () => stepLightbox(1);
 
@@ -93,6 +117,8 @@ function showItem(item) {
   counterEl.textContent = items.length > 1 ? `${idx + 1} / ${items.length}` : '';
   prevBtn.style.visibility = idx > 0                ? '' : 'hidden';
   nextBtn.style.visibility = idx < items.length - 1 ? '' : 'hidden';
+  if (lbPromptBtn)   lbPromptBtn.style.display   = item.name.toLowerCase().endsWith('.png') ? '' : 'none';
+  if (lbGenerateBtn) lbGenerateBtn.style.display = isImg(item.name) ? '' : 'none';
 }
 
 export function openLightbox(item) {

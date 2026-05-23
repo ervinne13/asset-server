@@ -9,6 +9,8 @@ import { renderFiles } from './modules/files.js';
 import './modules/mobile.js';
 import './modules/preview.js';
 import './modules/tags.js';
+import './modules/prompt.js';
+import './modules/generate.js';
 import './modules/search.js';
 import './modules/move.js';
 import './modules/trash.js';

@@ -5,6 +5,7 @@ import { navigate, silentRefresh } from './router.js';
 import { softDelete, bulkSoftDelete } from './trash.js';
 import { createFolderAt } from './move.js';
 import { openLightbox, closeLightbox, stepLightbox, updateLightbox, playLightboxVideo, toggleLightboxVideo } from './lightbox.js';
+import { copySelectedToClipboard } from './preview.js';
 
 // ── Keyboard shortcuts ────────────────────────────────────────────────────────
 //
@@ -17,6 +18,7 @@ import { openLightbox, closeLightbox, stepLightbox, updateLightbox, playLightbox
 //  Photo mode  (Enter to open, Esc to close)
 //    ←  /  →       Prev / next image
 //    Space          Play / pause video
+//    Ctrl/⌘+C      Copy image to clipboard (URL fallback for non-HTTPS)
 //    d / Delete / Backspace   Delete current image — 5 s undo, advances to next
 //
 //  Selection
@@ -103,6 +105,12 @@ document.addEventListener('keydown', e => {
       case ' ':
         e.preventDefault();
         if (!toggleLightboxVideo()) closeLightbox();
+        break;
+      case 'c':
+        if (e.ctrlKey || e.metaKey) {
+          e.preventDefault();
+          copySelectedToClipboard();
+        }
         break;
       case 'Delete':
       case 'd':

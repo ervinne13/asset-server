@@ -33,6 +33,9 @@ DEST="${SSH_USER:-ervinne}@${SSH_HOST:?SSH_HOST is required}"
 
 echo "→ Syncing to $DEST:$REMOTE_PATH"
 
+# Write current git hash as VERSION so the server can use it for cache-busting
+date +%s > VERSION
+
 $SSHPASS_PREFIX rsync -az --progress \
   --exclude='.git/' \
   --exclude='.env' \

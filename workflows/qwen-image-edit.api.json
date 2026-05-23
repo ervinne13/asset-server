@@ -1,0 +1,234 @@
+{
+  "45": {
+    "inputs": {
+      "filename_prefix": "PLACEHOLDER_PREFIX",
+      "images": ["51:21", 0]
+    },
+    "class_type": "SaveImage",
+    "_meta": { "title": "Save Image" }
+  },
+  "46": {
+    "inputs": { "seed": 0 },
+    "class_type": "Seed (rgthree)",
+    "_meta": { "title": "Seed (rgthree)" }
+  },
+  "47": {
+    "inputs": { "image": "PLACEHOLDER_IMAGE" },
+    "class_type": "LoadImage",
+    "_meta": { "title": "Load Image" }
+  },
+  "48": {
+    "inputs": { "value": "PLACEHOLDER_NEGATIVE" },
+    "class_type": "PrimitiveStringMultiline",
+    "_meta": { "title": "Negative Prompt" }
+  },
+  "50": {
+    "inputs": { "value": "((Use the source image as the strict identity reference. Preserve the exact same face, identity, facial structure, proportions, and overall appearance. Do not alter or reinterpret the face in any way.))" },
+    "class_type": "PrimitiveStringMultiline",
+    "_meta": { "title": "Positive Prompt (Header)" }
+  },
+  "62": {
+    "inputs": { "value": "PLACEHOLDER_POSITIVE" },
+    "class_type": "PrimitiveStringMultiline",
+    "_meta": { "title": "Positive Prompt (Body)" }
+  },
+  "65": {
+    "inputs": {
+      "delimiter": ", ",
+      "clean_whitespace": "false",
+      "text_a": ["50", 0],
+      "text_b": ["62", 0]
+    },
+    "class_type": "Text Concatenate",
+    "_meta": { "title": "Text Concatenate" }
+  },
+  "51:1": {
+    "inputs": {
+      "unet_name": "qwen_image_edit_2511_fp8mixed.safetensors",
+      "weight_dtype": "default"
+    },
+    "class_type": "UNETLoader",
+    "_meta": { "title": "Load Diffusion Model" }
+  },
+  "51:2": {
+    "inputs": {
+      "clip_name": "qwen_2.5_vl_7b_fp8_scaled.safetensors",
+      "type": "stable_diffusion",
+      "device": "default"
+    },
+    "class_type": "CLIPLoader",
+    "_meta": { "title": "Load CLIP" }
+  },
+  "51:3": {
+    "inputs": { "vae_name": "qwen_image_vae.safetensors" },
+    "class_type": "VAELoader",
+    "_meta": { "title": "Load VAE" }
+  },
+  "51:7": {
+    "inputs": {
+      "prompt": ["65", 0],
+      "clip": ["51:2", 0],
+      "vae": ["51:3", 0],
+      "image1": ["47", 0]
+    },
+    "class_type": "TextEncodeQwenImageEditPlus",
+    "_meta": { "title": "TextEncodeQwenImageEditPlus" }
+  },
+  "51:8": {
+    "inputs": {
+      "prompt": ["48", 0],
+      "clip": ["51:2", 0],
+      "vae": ["51:3", 0],
+      "image1": ["47", 0]
+    },
+    "class_type": "TextEncodeQwenImageEditPlus",
+    "_meta": { "title": "TextEncodeQwenImageEditPlus" }
+  },
+  "51:9": {
+    "inputs": {
+      "reference_latents_method": "index_timestep_zero",
+      "conditioning": ["51:7", 0]
+    },
+    "class_type": "FluxKontextMultiReferenceLatentMethod",
+    "_meta": { "title": "Edit Model Reference Method" }
+  },
+  "51:10": {
+    "inputs": {
+      "shift": 3.1,
+      "model": ["51:1", 0]
+    },
+    "class_type": "ModelSamplingAuraFlow",
+    "_meta": { "title": "ModelSamplingAuraFlow" }
+  },
+  "51:11": {
+    "inputs": {
+      "reference_latents_method": "index_timestep_zero",
+      "conditioning": ["51:8", 0]
+    },
+    "class_type": "FluxKontextMultiReferenceLatentMethod",
+    "_meta": { "title": "Edit Model Reference Method" }
+  },
+  "51:12": {
+    "inputs": {
+      "strength": 1.0,
+      "model": ["51:10", 0]
+    },
+    "class_type": "CFGNorm",
+    "_meta": { "title": "CFGNorm" }
+  },
+  "51:13": {
+    "inputs": {
+      "switch": ["51:14", 0],
+      "on_false": ["51:15", 0],
+      "on_true": ["51:16", 0]
+    },
+    "class_type": "ComfySwitchNode",
+    "_meta": { "title": "Switch LoRA" }
+  },
+  "51:14": {
+    "inputs": { "value": false },
+    "class_type": "PrimitiveBoolean",
+    "_meta": { "title": "Boolean" }
+  },
+  "51:15": {
+    "inputs": {
+      "lora_name": "Qwen-Image-Edit-2511-Lightning-4steps-V1.0-bf16.safetensors",
+      "strength_model": 1.0,
+      "model": ["51:12", 0]
+    },
+    "class_type": "LoraLoaderModelOnly",
+    "_meta": { "title": "4 Steps Lightning LoRA" }
+  },
+  "51:16": {
+    "inputs": {
+      "lora_name": "Qwen-Image-Edit-2511-Lightning-8steps-V1.0-bf16.safetensors",
+      "strength_model": 1.0,
+      "model": ["51:12", 0]
+    },
+    "class_type": "LoraLoaderModelOnly",
+    "_meta": { "title": "8 Steps Lightning LoRA" }
+  },
+  "51:17": {
+    "inputs": { "value": 4 },
+    "class_type": "INTConstant",
+    "_meta": { "title": "4 Steps" }
+  },
+  "51:18": {
+    "inputs": { "value": 8 },
+    "class_type": "INTConstant",
+    "_meta": { "title": "8 Steps" }
+  },
+  "51:19": {
+    "inputs": {
+      "switch": ["51:14", 0],
+      "on_false": ["51:17", 0],
+      "on_true": ["51:18", 0]
+    },
+    "class_type": "ComfySwitchNode",
+    "_meta": { "title": "Switch Steps" }
+  },
+  "51:20": {
+    "inputs": {
+      "seed": ["46", 0],
+      "steps": ["51:19", 0],
+      "cfg": 1.0,
+      "sampler_name": "euler",
+      "scheduler": "simple",
+      "denoise": 1.0,
+      "model": ["51:13", 0],
+      "positive": ["51:9", 0],
+      "negative": ["51:11", 0],
+      "latent_image": ["51:30", 0]
+    },
+    "class_type": "KSampler",
+    "_meta": { "title": "KSampler" }
+  },
+  "51:21": {
+    "inputs": {
+      "samples": ["51:20", 0],
+      "vae": ["51:3", 0]
+    },
+    "class_type": "VAEDecode",
+    "_meta": { "title": "VAE Decode" }
+  },
+  "51:30": {
+    "inputs": {
+      "pixels": ["51:58", 0],
+      "vae": ["51:3", 0]
+    },
+    "class_type": "VAEEncode",
+    "_meta": { "title": "VAE Encode" }
+  },
+  "51:54": {
+    "inputs": { "value": 1024 },
+    "class_type": "INTConstant",
+    "_meta": { "title": "Target Width" }
+  },
+  "51:55": {
+    "inputs": { "value": 1536 },
+    "class_type": "INTConstant",
+    "_meta": { "title": "Target Height" }
+  },
+  "51:56": {
+    "inputs": {
+      "left": 0, "right": 0, "top": 0, "bottom": 0,
+      "extra_padding": 0,
+      "pad_mode": "edge_pixel",
+      "color": "0, 0, 0",
+      "image": ["47", 0],
+      "target_width": ["51:54", 0],
+      "target_height": ["51:55", 0]
+    },
+    "class_type": "ImagePadKJ",
+    "_meta": { "title": "ImagePad KJ" }
+  },
+  "51:58": {
+    "inputs": {
+      "switch": false,
+      "on_false": ["47", 0],
+      "on_true": ["51:56", 0]
+    },
+    "class_type": "ComfySwitchNode",
+    "_meta": { "title": "Switch" }
+  }
+}
