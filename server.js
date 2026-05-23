@@ -292,11 +292,10 @@ function extractPrompts(workflowJson) {
     if (Array.isArray(wf.nodes)) {
       // UI workflow format (drag-and-drop into ComfyUI loads this)
       for (const node of wf.nodes) {
-        if (CLIP_TYPES.has(node.type) && node.widgets_values?.length) {
-          const text = node.widgets_values[0];
-          if (typeof text === 'string' && text.trim()) {
-            prompts.push({ title: node.title || node.type, text: text.trim() });
-          }
+        const text = node.widgets_values?.[0];
+        if (typeof text !== 'string' || !text.trim()) continue;
+        if (CLIP_TYPES.has(node.type) || node.type === 'PrimitiveStringMultiline') {
+          prompts.push({ title: node.title || node.type, text: text.trim() });
         }
       }
     } else {
@@ -304,6 +303,9 @@ function extractPrompts(workflowJson) {
       for (const node of Object.values(wf)) {
         if (CLIP_TYPES.has(node.class_type) && typeof node.inputs?.text === 'string' && node.inputs.text.trim()) {
           prompts.push({ title: node._meta?.title || node.class_type, text: node.inputs.text.trim() });
+        }
+        if (node.class_type === 'PrimitiveStringMultiline' && typeof node.inputs?.value === 'string' && node.inputs.value.trim()) {
+          prompts.push({ title: node._meta?.title || 'Prompt', text: node.inputs.value.trim() });
         }
       }
     }
