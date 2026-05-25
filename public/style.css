@@ -1389,3 +1389,85 @@ body {
   border-top: 1px solid var(--sl-color-neutral-200);
   flex-shrink: 0;
 }
+
+/* ── ZIT Txt2Img Page ──────────────────────────────────────────────────────── */
+
+.zit-page {
+  position: fixed;
+  inset: 0;
+  z-index: 10000;
+  background: var(--sl-color-neutral-0);
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.zit-content {
+  flex: 1;
+  display: flex;
+  justify-content: center;
+  align-items: flex-start;
+  overflow-y: auto;
+  padding: 20px 16px;
+}
+
+.zit-inner {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  width: 100%;
+  max-width: 640px;
+}
+
+.zit-textarea-wrap {
+  position: relative;
+  display: flex;
+}
+
+.zit-textarea {
+  width: 100%;
+  min-height: 320px;
+  padding: 14px 44px 14px 14px;
+  background: var(--sl-color-neutral-50);
+  border: 1px solid var(--sl-color-neutral-300);
+  border-radius: var(--sl-border-radius-medium);
+  color: var(--sl-color-neutral-900);
+  font-family: var(--sl-font-sans);
+  font-size: 14px;
+  line-height: 1.65;
+  resize: vertical;
+  outline: none;
+  transition: border-color 0.15s;
+}
+
+.zit-textarea:focus {
+  border-color: var(--sl-color-primary-500);
+  box-shadow: 0 0 0 2px var(--sl-color-primary-200);
+}
+
+.zit-paste-btn {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  background: var(--sl-color-neutral-100);
+  border: 1px solid var(--sl-color-neutral-200);
+  border-radius: var(--sl-border-radius-small);
+  color: var(--sl-color-neutral-600);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  font-size: 14px;
+  transition: background 0.15s, color 0.15s;
+}
+
+.zit-paste-btn:hover {
+  background: var(--sl-color-neutral-200);
+  color: var(--sl-color-neutral-900);
+}
+
+@media (max-width: 640px) {
+  .zit-content { padding: 14px 12px; }
+  .zit-textarea { min-height: 260px; font-size: 16px; }
+}

@@ -16,6 +16,7 @@ import './modules/move.js';
 import './modules/trash.js';
 import './modules/keyboard.js';
 import './modules/comfyui-status.js';
+import './modules/zit.js';
 
 // ── View toggle ───────────────────────────────────────────────────────────────
 
