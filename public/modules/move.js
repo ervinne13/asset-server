@@ -36,6 +36,16 @@ function makeTreeItem(label, path, { icon, labelClass } = {}) {
   return item;
 }
 
+const RECENT_MOVE_KEY = 'recentMoveDest';
+
+function getRecentMoveDest() {
+  return localStorage.getItem(RECENT_MOVE_KEY) || null;
+}
+
+function saveRecentMoveDest(path) {
+  localStorage.setItem(RECENT_MOVE_KEY, path);
+}
+
 export async function openMoveDialog() {
   const libRoot = state.config?.roots?.library;
   if (!libRoot) { toast('Library root not configured', 'warning'); return; }
@@ -43,6 +53,17 @@ export async function openMoveDialog() {
   state.moveDestPath = libRoot;
   $('move-dest-display').textContent = libRoot;
   moveTree.innerHTML = '';
+
+  const recentDest = getRecentMoveDest();
+  if (recentDest) {
+    const recentLabel = makeTreeItem('Recently Used', null, { labelClass: 'move-tree-label' });
+    recentLabel.disabled = true;
+    moveTree.appendChild(recentLabel);
+
+    const recentItem = makeTreeItem(recentDest.split('/').pop(), recentDest, { icon: 'clock-history' });
+    recentItem.title = recentDest;
+    moveTree.appendChild(recentItem);
+  }
 
   if (state.bookmarks.length > 0) {
     const bmLabel = makeTreeItem('Bookmarks', null, { labelClass: 'move-tree-label' });
@@ -130,6 +151,7 @@ $('btn-move-confirm').onclick = async () => {
 
   try {
     await api.move(paths, state.moveDestPath);
+    saveRecentMoveDest(state.moveDestPath);
     moveDialog.hide();
     state.currentItems = state.currentItems.filter(i => !paths.includes(i.path));
     clearSelection();
