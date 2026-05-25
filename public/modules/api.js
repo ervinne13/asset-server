@@ -29,4 +29,5 @@ export const api = {
   saveTags: (p, tags) => api.post('/api/tags', { path: p, tags }),
   tagVocab: () => api.get('/api/tags/vocab'),
   generate: body => api.post('/api/comfyui/generate', body),
+  comfyStatus: () => api.get('/api/comfyui/status'),
 };

@@ -30,6 +30,7 @@
   <link rel="modulepreload" href="/modules/tags.js" />
   <link rel="modulepreload" href="/modules/prompt.js" />
   <link rel="modulepreload" href="/modules/generate.js" />
+  <link rel="modulepreload" href="/modules/comfyui-status.js" />
 </head>
 <body>
   <div class="shell">
@@ -54,6 +55,11 @@
 
       <div class="sidebar-section-label">Bookmarks</div>
       <div id="bookmark-list"></div>
+
+      <div id="comfyui-status" class="comfyui-status" title="ComfyUI status">
+        <span class="comfyui-dot"></span>
+        <span class="comfyui-label"></span>
+      </div>
     </aside>
 
     <!-- ── Middle: Explorer ── -->

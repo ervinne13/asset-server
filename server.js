@@ -501,7 +501,23 @@ app.get('/api/index/search', (req, res) => {
   res.json({ folders: folders.slice(0, 100), files: files.slice(0, 300), root: index.root, indexed: true });
 });
 
-// ── ComfyUI: generate (Qwen image edit) ──────────────────────────────────────
+// ── ComfyUI helpers ───────────────────────────────────────────────────────────
+
+function comfyGet(baseUrl, urlPath) {
+  return new Promise((resolve, reject) => {
+    const u = new URL(urlPath, baseUrl);
+    const req = http.get({
+      hostname: u.hostname,
+      port: parseInt(u.port) || 80,
+      path: u.pathname,
+    }, res => {
+      let data = '';
+      res.on('data', c => { data += c; });
+      res.on('end', () => { try { resolve(JSON.parse(data)); } catch { resolve({ raw: data }); } });
+    });
+    req.on('error', reject);
+  });
+}
 
 function comfyPost(baseUrl, urlPath, body) {
   return new Promise((resolve, reject) => {
@@ -523,6 +539,20 @@ function comfyPost(baseUrl, urlPath, body) {
     req.end();
   });
 }
+
+app.get('/api/comfyui/status', async (req, res) => {
+  const config = loadConfig();
+  const comfyUrl = config.comfyuiUrl || 'http://localhost:8188';
+  try {
+    const queue = await comfyGet(comfyUrl, '/api/queue');
+    const running = (queue.queue_running?.length || 0) > 0;
+    const queueDepth = (queue.queue_running?.length || 0) + (queue.queue_pending?.length || 0);
+    const currentPromptId = queue.queue_running?.[0]?.[1] ?? null;
+    res.json({ running, queueDepth, currentPromptId });
+  } catch (err) {
+    res.status(503).json({ error: err.message });
+  }
+});
 
 app.post('/api/comfyui/generate', async (req, res) => {
   const { filePath, positiveBody, negativePrompt, seed } = req.body;
