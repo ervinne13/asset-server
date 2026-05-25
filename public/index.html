@@ -7,6 +7,11 @@
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@shoelace-style/shoelace@2.20.1/cdn/themes/dark.css" />
   <script type="module" src="https://cdn.jsdelivr.net/npm/@shoelace-style/shoelace@2.20.1/cdn/shoelace-autoloader.js"></script>
   <link rel="stylesheet" href="/style.css" />
+  <script>
+    const _sizes = [290, 480, 700];
+    const _idx = Math.min(parseInt(localStorage.getItem('panelSizeIdx') || '0', 10), _sizes.length - 1);
+    document.documentElement.style.setProperty('--panel-right', _sizes[_idx] + 'px');
+  </script>
   <link rel="modulepreload" href="/app.js" />
   <link rel="modulepreload" href="/modules/state.js" />
   <link rel="modulepreload" href="/modules/api.js" />
@@ -207,26 +212,30 @@
       <span class="gen-title">Edit with Qwen</span>
       <span id="gen-status" class="gen-status"></span>
     </div>
-    <div class="gen-img-wrap">
-      <img id="gen-img" src="" alt="" />
-    </div>
-    <div class="gen-body">
-      <label class="gen-label">Edit prompt</label>
-      <textarea id="gen-positive" class="gen-textarea" placeholder="Describe the scene or edit…"></textarea>
-      <details class="gen-advanced">
-        <summary>Advanced options</summary>
-        <div class="gen-advanced-body">
-          <label class="gen-label">Negative prompt</label>
-          <textarea id="gen-negative" class="gen-textarea gen-textarea-sm" rows="3"></textarea>
-          <label class="gen-label">Seed <small>(blank = random)</small></label>
-          <input id="gen-seed" type="number" class="gen-seed-input" placeholder="random" />
+    <div class="gen-content">
+      <div class="gen-img-wrap">
+        <img id="gen-img" src="" alt="" />
+      </div>
+      <div class="gen-right">
+        <div class="gen-body">
+          <label class="gen-label">Edit prompt</label>
+          <textarea id="gen-positive" class="gen-textarea" placeholder="Describe the scene or edit…"></textarea>
+          <details class="gen-advanced">
+            <summary>Advanced options</summary>
+            <div class="gen-advanced-body">
+              <label class="gen-label">Negative prompt</label>
+              <textarea id="gen-negative" class="gen-textarea gen-textarea-sm" rows="3"></textarea>
+              <label class="gen-label">Seed <small>(blank = random)</small></label>
+              <input id="gen-seed" type="number" class="gen-seed-input" placeholder="random" />
+            </div>
+          </details>
         </div>
-      </details>
-    </div>
-    <div class="gen-footer">
-      <sl-button variant="primary" id="btn-gen-submit" size="large" style="width:100%">
-        <sl-icon slot="prefix" name="pencil-fill"></sl-icon>Generate
-      </sl-button>
+        <div class="gen-footer">
+          <sl-button variant="primary" id="btn-gen-submit" size="large" style="width:100%">
+            <sl-icon slot="prefix" name="pencil-fill"></sl-icon>Generate
+          </sl-button>
+        </div>
+      </div>
     </div>
   </div>
 

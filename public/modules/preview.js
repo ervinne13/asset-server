@@ -51,9 +51,14 @@ export function showPreview(item) {
 
     const showToolbar = isImg(item.name) || isVideo(item.name);
     $('preview-toolbar').style.display = showToolbar ? 'flex' : 'none';
-    const isPng = item.name.toLowerCase().endsWith('.png');
-    $('btn-prompt-open').style.display = isPng ? '' : 'none';
     $('btn-generate-open').style.display = isImg(item.name) ? '' : 'none';
+    $('btn-prompt-open').style.display = 'none';
+    if (item.name.toLowerCase().endsWith('.png')) {
+      api.getPrompt(item.path).then(d => {
+        if (d.prompts?.length && state.selectedFile?.path === item.path)
+          $('btn-prompt-open').style.display = '';
+      }).catch(() => {});
+    }
   }
 }
 

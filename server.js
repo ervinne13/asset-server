@@ -285,30 +285,74 @@ function readPngTextChunks(filePath) {
   return result;
 }
 
+// Node types that are entry points into the text graph
+const TEXT_ENTRY_TYPES = new Set([
+  ...CLIP_TYPES,
+  'TextEncodeQwenImageEditPlus',
+  'CLIPTextEncodeFlux',
+]);
+
 function extractPrompts(workflowJson) {
   try {
     const wf = JSON.parse(workflowJson);
     const prompts = [];
+
     if (Array.isArray(wf.nodes)) {
-      // UI workflow format (drag-and-drop into ComfyUI loads this)
+      // UI workflow format: widgets_values[0] holds the text directly
       for (const node of wf.nodes) {
         const text = node.widgets_values?.[0];
         if (typeof text !== 'string' || !text.trim()) continue;
-        if (CLIP_TYPES.has(node.type) || node.type === 'PrimitiveStringMultiline') {
+        if (TEXT_ENTRY_TYPES.has(node.type) || node.type === 'PrimitiveStringMultiline') {
           prompts.push({ title: node.title || node.type, text: text.trim() });
         }
       }
     } else {
-      // API prompt format (fallback)
-      for (const node of Object.values(wf)) {
-        if (CLIP_TYPES.has(node.class_type) && typeof node.inputs?.text === 'string' && node.inputs.text.trim()) {
-          prompts.push({ title: node._meta?.title || node.class_type, text: node.inputs.text.trim() });
+      // API prompt format: trace graph backwards from text-encode entry points
+      const TEXT_KEYS = ['text', 'prompt', 'value', 'text_a', 'text_b'];
+      const seen = new Set();
+
+      function collectText(nodeId, fallbackTitle) {
+        if (seen.has(nodeId)) return;
+        seen.add(nodeId);
+        const node = wf[nodeId];
+        if (!node) return;
+        const title = node._meta?.title || fallbackTitle || node.class_type;
+        for (const key of TEXT_KEYS) {
+          const val = (node.inputs || {})[key];
+          if (typeof val === 'string' && val.trim()) {
+            prompts.push({ title, text: val.trim() });
+          } else if (Array.isArray(val) && typeof val[0] === 'string') {
+            collectText(val[0], title);
+          }
         }
-        if (node.class_type === 'PrimitiveStringMultiline' && typeof node.inputs?.value === 'string' && node.inputs.value.trim()) {
-          prompts.push({ title: node._meta?.title || 'Prompt', text: node.inputs.value.trim() });
+      }
+
+      // Seed traversal from CLIP / text-encode entry nodes
+      for (const [id, node] of Object.entries(wf)) {
+        if (!TEXT_ENTRY_TYPES.has(node.class_type)) continue;
+        const title = node._meta?.title || node.class_type;
+        for (const key of ['text', 'prompt']) {
+          const val = (node.inputs || {})[key];
+          if (typeof val === 'string' && val.trim()) {
+            seen.add(id);
+            prompts.push({ title, text: val.trim() });
+          } else if (Array.isArray(val) && typeof val[0] === 'string') {
+            collectText(val[0], title);
+          }
+        }
+      }
+
+      // Pick up any PrimitiveStringMultiline not reachable from a CLIP node
+      for (const [id, node] of Object.entries(wf)) {
+        if (node.class_type === 'PrimitiveStringMultiline' && !seen.has(id)) {
+          const val = node.inputs?.value;
+          if (typeof val === 'string' && val.trim()) {
+            prompts.push({ title: node._meta?.title || 'Prompt', text: val.trim() });
+          }
         }
       }
     }
+
     return prompts;
   } catch { return []; }
 }
@@ -319,8 +363,9 @@ app.get('/api/prompt', (req, res) => {
   if (!isAllowedPath(filePath)) return res.status(403).json({ error: 'path not allowed' });
   if (path.extname(filePath).toLowerCase() !== '.png') return res.json({ prompts: [] });
   const chunks = readPngTextChunks(filePath);
-  const source = chunks.workflow || chunks.prompt || null;
-  res.json({ prompts: source ? extractPrompts(source) : [] });
+  let prompts = chunks.workflow ? extractPrompts(chunks.workflow) : [];
+  if (!prompts.length && chunks.prompt) prompts = extractPrompts(chunks.prompt);
+  res.json({ prompts });
 });
 
 // ── Tags ──────────────────────────────────────────────────────────────────────

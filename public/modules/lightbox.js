@@ -117,8 +117,16 @@ function showItem(item) {
   counterEl.textContent = items.length > 1 ? `${idx + 1} / ${items.length}` : '';
   prevBtn.style.visibility = idx > 0                ? '' : 'hidden';
   nextBtn.style.visibility = idx < items.length - 1 ? '' : 'hidden';
-  if (lbPromptBtn)   lbPromptBtn.style.display   = item.name.toLowerCase().endsWith('.png') ? '' : 'none';
   if (lbGenerateBtn) lbGenerateBtn.style.display = isImg(item.name) ? '' : 'none';
+  if (lbPromptBtn) {
+    lbPromptBtn.style.display = 'none';
+    if (item.name.toLowerCase().endsWith('.png')) {
+      api.getPrompt(item.path).then(d => {
+        if (d.prompts?.length && state.selectedFile?.path === item.path)
+          lbPromptBtn.style.display = '';
+      }).catch(() => {});
+    }
+  }
 }
 
 export function openLightbox(item) {

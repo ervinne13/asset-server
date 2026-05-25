@@ -8,6 +8,7 @@
 
 :root {
   --panel-left: 220px;
+  --panel-right: 290px;
 }
 
 body {
@@ -22,7 +23,6 @@ body {
 /* ── Shell ─────────────────────────────────────────── */
 
 .shell {
-  --panel-right: 290px;
   display: grid;
   grid-template-columns: var(--panel-left) 1fr var(--panel-right);
   height: 100vh;
@@ -393,10 +393,6 @@ body {
 }
 
 /* ── Right Panel ───────────────────────────────────── */
-
-.shell {
-  --panel-right: 290px;
-}
 
 .panel-right {
   background: var(--sl-color-neutral-100);
@@ -1210,6 +1206,20 @@ body {
   color: var(--sl-color-neutral-500);
 }
 
+.gen-content {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+}
+
+.gen-right {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-height: 0;
+}
+
 .gen-img-wrap {
   flex-shrink: 0;
   height: 35vh;
@@ -1224,6 +1234,18 @@ body {
   max-width: 100%;
   max-height: 100%;
   object-fit: contain;
+}
+
+@media (min-width: 768px) {
+  .gen-content {
+    flex-direction: row;
+  }
+
+  .gen-img-wrap {
+    height: auto;
+    flex: 0 0 45%;
+    border-right: 1px solid var(--sl-color-neutral-200);
+  }
 }
 
 .gen-body {

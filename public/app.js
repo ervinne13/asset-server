@@ -59,11 +59,12 @@ $('btn-rebuild-index').addEventListener('click', async () => {
 // ── Panel expand ──────────────────────────────────────────────────────────────
 
 const PANEL_SIZES = [290, 480, 700];
-let panelSizeIdx = 0;
+let panelSizeIdx = Math.min(parseInt(localStorage.getItem('panelSizeIdx') || '0', 10), PANEL_SIZES.length - 1);
 
 $('btn-expand-panel').addEventListener('click', () => {
   panelSizeIdx = (panelSizeIdx + 1) % PANEL_SIZES.length;
-  document.querySelector('.shell').style.setProperty('--panel-right', PANEL_SIZES[panelSizeIdx] + 'px');
+  document.documentElement.style.setProperty('--panel-right', PANEL_SIZES[panelSizeIdx] + 'px');
+  localStorage.setItem('panelSizeIdx', panelSizeIdx);
 });
 
 // ── Staging auto-refresh ──────────────────────────────────────────────────────
