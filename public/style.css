@@ -928,6 +928,12 @@ body {
     transition: none;
   }
 
+  /* Bound panel-main to viewport height so the file grid can scroll.
+     Without this, the grid auto-row grows to content and overflow-y: auto never fires. */
+  .panel-main {
+    height: 100dvh;
+  }
+
   /* Hide right panel entirely */
   .panel-right { display: none; }
 
