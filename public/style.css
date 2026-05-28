@@ -1477,3 +1477,215 @@ body {
   .zit-content { padding: 14px 12px; }
   .zit-textarea { min-height: 260px; font-size: 16px; }
 }
+
+/* ── ZIT saved / recent sections ───────────────────────────────────────────── */
+
+.zit-section {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.zit-section-header {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--sl-color-neutral-500);
+}
+
+.zit-saved-list {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.zit-empty {
+  font-size: 13px;
+  color: var(--sl-color-neutral-400);
+  padding: 4px 0;
+}
+
+.zit-saved-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 6px 8px;
+  border-radius: var(--sl-border-radius-medium);
+  cursor: pointer;
+  transition: background 0.12s;
+  border: 1px solid transparent;
+}
+
+.zit-saved-item:hover {
+  background: var(--sl-color-neutral-100);
+  border-color: var(--sl-color-neutral-200);
+}
+
+.zit-saved-thumb {
+  width: 44px;
+  height: 44px;
+  border-radius: var(--sl-border-radius-small);
+  overflow: hidden;
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--sl-color-neutral-100);
+  border: 1px solid var(--sl-color-neutral-200);
+}
+
+.zit-saved-thumb img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.zit-saved-thumb--empty {
+  color: var(--sl-color-neutral-400);
+  font-size: 18px;
+}
+
+.zit-saved-title {
+  flex: 1;
+  font-size: 13px;
+  color: var(--sl-color-neutral-900);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.zit-saved-delete {
+  background: none;
+  border: none;
+  color: var(--sl-color-neutral-400);
+  cursor: pointer;
+  font-size: 16px;
+  line-height: 1;
+  padding: 2px 4px;
+  border-radius: var(--sl-border-radius-small);
+  transition: color 0.12s, background 0.12s;
+  flex-shrink: 0;
+}
+
+.zit-saved-delete:hover {
+  color: var(--sl-color-danger-600);
+  background: var(--sl-color-danger-50);
+}
+
+.zit-recent-list {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.zit-recent-item {
+  font-size: 12px;
+  color: var(--sl-color-neutral-700);
+  padding: 5px 8px;
+  border-radius: var(--sl-border-radius-medium);
+  cursor: pointer;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  transition: background 0.12s;
+  border: 1px solid transparent;
+}
+
+.zit-recent-item:hover {
+  background: var(--sl-color-neutral-100);
+  border-color: var(--sl-color-neutral-200);
+}
+
+/* ── ZIT batch count row ────────────────────────────────────────────────────── */
+
+.zit-batch-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.zit-batch-label {
+  font-size: 13px;
+  color: var(--sl-color-neutral-500);
+  white-space: nowrap;
+}
+
+/* ── ZIT title row (save mode) ──────────────────────────────────────────────── */
+
+.zit-title-row {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+}
+
+.zit-title-input {
+  flex: 1;
+  padding: 8px 12px;
+  background: var(--sl-color-neutral-50);
+  border: 1px solid var(--sl-color-primary-400);
+  border-radius: var(--sl-border-radius-medium);
+  color: var(--sl-color-neutral-900);
+  font-family: var(--sl-font-sans);
+  font-size: 14px;
+  outline: none;
+  transition: border-color 0.15s, box-shadow 0.15s;
+}
+
+.zit-title-input:focus {
+  border-color: var(--sl-color-primary-500);
+  box-shadow: 0 0 0 2px var(--sl-color-primary-200);
+}
+
+.zit-title-input::placeholder {
+  color: var(--sl-color-neutral-400);
+}
+
+.zit-save-cancel {
+  background: none;
+  border: 1px solid var(--sl-color-neutral-300);
+  border-radius: var(--sl-border-radius-medium);
+  color: var(--sl-color-neutral-500);
+  cursor: pointer;
+  font-size: 16px;
+  width: 32px;
+  height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: color 0.12s, background 0.12s;
+  flex-shrink: 0;
+}
+
+.zit-save-cancel:hover {
+  color: var(--sl-color-neutral-900);
+  background: var(--sl-color-neutral-100);
+}
+
+/* ── ZIT split submit button ────────────────────────────────────────────────── */
+
+.zit-submit-group {
+  display: flex;
+  gap: 0;
+  width: 100%;
+}
+
+.zit-submit-btn {
+  flex: 1;
+}
+
+.zit-submit-btn::part(base) {
+  border-top-right-radius: 0;
+  border-bottom-right-radius: 0;
+  border-right: none;
+}
+
+.zit-menu-btn::part(base) {
+  border-top-left-radius: 0;
+  border-bottom-left-radius: 0;
+  padding-inline: 0.75em;
+  border-left: 1px solid rgba(255, 255, 255, 0.2);
+}

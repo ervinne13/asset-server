@@ -4,6 +4,7 @@ const path = require('path');
 const { execFileSync } = require('child_process');
 const { loadConfig, isAllowedPath } = require('../lib/config');
 const { comfyGet, comfyPost, readPngTextChunks, extractPrompts } = require('../lib/comfyui');
+const { pollAndSaveImage } = require('./zit-prompts');
 
 const router = express.Router();
 const WORKFLOWS_DIR = path.join(__dirname, '..', 'workflows');
@@ -83,7 +84,7 @@ router.post('/api/comfyui/generate', async (req, res) => {
 });
 
 router.post('/api/comfyui/zit-txt2img', async (req, res) => {
-  const { prompt, seed } = req.body;
+  const { prompt, seed, savedPromptId } = req.body;
   if (!prompt || !prompt.trim()) return res.status(400).json({ error: 'prompt required' });
 
   const url = comfyUrl(loadConfig());
@@ -95,6 +96,9 @@ router.post('/api/comfyui/zit-txt2img', async (req, res) => {
 
   try {
     const result = await comfyPost(url, '/api/prompt', { prompt: workflow });
+    if (savedPromptId && result.prompt_id) {
+      pollAndSaveImage(result.prompt_id, savedPromptId).catch(() => {});
+    }
     res.json({ ok: true, promptId: result.prompt_id });
   } catch (err) {
     res.status(500).json({ error: `ComfyUI submit failed: ${err.message}` });

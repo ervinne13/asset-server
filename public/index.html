@@ -125,6 +125,9 @@
           <button class="action-btn" id="btn-new-folder">
             <sl-icon name="folder-plus"></sl-icon> New folder
           </button>
+          <button class="action-btn" id="btn-open-in-os">
+            <sl-icon name="folder2-open"></sl-icon> Open in OS
+          </button>
           <button class="action-btn danger" id="btn-delete-folder" style="display:none">
             <sl-icon name="trash"></sl-icon> Delete folder
           </button>
@@ -263,15 +266,68 @@
     </div>
     <div class="zit-content">
       <div class="zit-inner">
+
+        <!-- Saved prompts -->
+        <div class="zit-section">
+          <div class="zit-section-header">
+            <sl-icon name="bookmark"></sl-icon>
+            <span>Saved Prompts</span>
+          </div>
+          <div id="zit-saved-list" class="zit-saved-list"></div>
+        </div>
+
+        <!-- Recent history -->
+        <div class="zit-section" id="zit-recent-section" style="display:none">
+          <div class="zit-section-header">
+            <sl-icon name="clock-history"></sl-icon>
+            <span>Recent</span>
+          </div>
+          <div id="zit-recent-list" class="zit-recent-list"></div>
+        </div>
+
+        <!-- Textarea -->
         <div class="zit-textarea-wrap">
           <textarea id="zit-prompt" class="zit-textarea" placeholder="Describe the image in detail…" spellcheck="true"></textarea>
           <button id="zit-paste" class="zit-paste-btn" title="Paste from clipboard">
             <sl-icon name="clipboard"></sl-icon>
           </button>
         </div>
-        <sl-button variant="primary" id="btn-zit-submit" size="large" style="width:100%">
-          <sl-icon slot="prefix" name="stars"></sl-icon>Generate
-        </sl-button>
+
+        <!-- Batch count -->
+        <div class="zit-batch-row">
+          <span class="zit-batch-label">Count</span>
+          <sl-radio-group id="zit-count" value="1" size="small">
+            <sl-radio-button value="1">1</sl-radio-button>
+            <sl-radio-button value="2">2</sl-radio-button>
+            <sl-radio-button value="3">3</sl-radio-button>
+            <sl-radio-button value="4">4</sl-radio-button>
+          </sl-radio-group>
+        </div>
+
+        <!-- Title row (save mode only) -->
+        <div id="zit-title-row" class="zit-title-row" style="display:none">
+          <input id="zit-title" type="text" class="zit-title-input" placeholder="Prompt title (required to save)" />
+          <button id="zit-save-mode-cancel" class="zit-save-cancel" title="Cancel save mode">&times;</button>
+        </div>
+
+        <!-- Split submit button -->
+        <div class="zit-submit-group">
+          <sl-button variant="primary" id="btn-zit-submit" size="large" class="zit-submit-btn">
+            <sl-icon slot="prefix" name="stars"></sl-icon>Generate
+          </sl-button>
+          <sl-dropdown id="zit-submit-menu" placement="top-end">
+            <sl-button slot="trigger" variant="primary" size="large" class="zit-menu-btn">
+              <sl-icon id="zit-caret-icon" name="chevron-down"></sl-icon>
+            </sl-button>
+            <sl-menu>
+              <sl-menu-item id="zit-menu-save-generate">
+                <sl-icon slot="prefix" name="bookmark-plus"></sl-icon>
+                Save Prompt &amp; Generate
+              </sl-menu-item>
+            </sl-menu>
+          </sl-dropdown>
+        </div>
+
       </div>
     </div>
   </div>

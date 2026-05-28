@@ -32,6 +32,7 @@ app.use(require('./routes/trash'));
 app.use(require('./routes/tags'));
 app.use(require('./routes/index-search'));
 app.use(require('./routes/comfyui'));
+app.use(require('./routes/zit-prompts').router);
 
 // ── SPA fallback ──────────────────────────────────────────────────────────────
 

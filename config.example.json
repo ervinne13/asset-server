@@ -8,5 +8,9 @@
     { "name": "Clothes", "path": "/mnt/windows/Others/LinuxFiles/resources_and_outputs/Clothes" }
   ],
   "port": 3000,
-  "comfyuiUrl": "http://192.168.0.110:8188"
+  "comfyuiUrl": "http://192.168.0.110:8188",
+  "osOpenMapping": [
+    { "serverPath": "/mnt/windows/Others/LinuxFiles/resources_and_outputs", "clientUrl": "smb://FORGE._smb._tcp.local/resources_and_outputs" },
+    { "serverPath": "/home/ervinne/ComfyUI/output", "clientUrl": "smb://FORGE._smb._tcp.local/output" }
+  ]
 }

@@ -30,5 +30,8 @@ export const api = {
   tagVocab: () => api.get('/api/tags/vocab'),
   generate: body => api.post('/api/comfyui/generate', body),
   comfyStatus: () => api.get('/api/comfyui/status'),
-  zitTxt2Img: (prompt, seed) => api.post('/api/comfyui/zit-txt2img', { prompt, seed }),
+  zitTxt2Img: (prompt, seed, savedPromptId) => api.post('/api/comfyui/zit-txt2img', { prompt, seed, savedPromptId }),
+  zitPromptsList: () => api.get('/api/zit-prompts'),
+  zitPromptsSave: body => api.post('/api/zit-prompts', body),
+  zitPromptsDelete: id => api.del(`/api/zit-prompts/${id}`, {}),
 };

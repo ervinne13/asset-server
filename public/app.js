@@ -43,6 +43,26 @@ $('btn-library').onclick = () => {
   if (state.config?.roots?.library) navigate(state.config.roots.library);
 };
 
+// ── Open in OS ────────────────────────────────────────────────────────────────
+
+$('btn-open-in-os').addEventListener('click', () => {
+  if (!state.currentPath) return;
+  const mappings = state.config?.osOpenMapping;
+  if (!mappings?.length) {
+    toast('Add osOpenMapping to config.json to enable Open in OS', 'warning');
+    return;
+  }
+  const match = mappings.find(m => state.currentPath.startsWith(m.serverPath));
+  if (!match) {
+    toast('No osOpenMapping entry matches current path', 'warning');
+    return;
+  }
+  const url = match.clientUrl + state.currentPath.slice(match.serverPath.length);
+  const a = document.createElement('a');
+  a.href = url;
+  a.click();
+});
+
 // ── Index rebuild ─────────────────────────────────────────────────────────────
 
 $('btn-rebuild-index').addEventListener('click', async () => {
