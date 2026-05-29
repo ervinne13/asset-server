@@ -34,4 +34,14 @@ export const api = {
   zitPromptsList: () => api.get('/api/zit-prompts'),
   zitPromptsSave: body => api.post('/api/zit-prompts', body),
   zitPromptsDelete: id => api.del(`/api/zit-prompts/${id}`, {}),
+  uploadImageFromFile: file => fetch('/api/comfyui/upload-image', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/octet-stream', 'X-Filename': file.name },
+    body: file,
+  }).then(async r => {
+    if (!r.ok) { const t = await r.text(); throw new Error(t || r.statusText); }
+    return r.json();
+  }),
+  uploadImageFromPath: p => api.post('/api/comfyui/upload-image', { path: p }),
+  qwenI2iNsfw: body => api.post('/api/comfyui/qwen-i2i-nsfw', body),
 };

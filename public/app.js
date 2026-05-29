@@ -16,7 +16,8 @@ import './modules/move.js';
 import './modules/trash.js';
 import './modules/keyboard.js';
 import './modules/comfyui-status.js';
-import './modules/zit.js';
+import { openZitPage, closeZitPage } from './modules/zit.js';
+import { openQwenPage, closeQwenPage } from './modules/qwen-i2i.js';
 
 // ── View toggle ───────────────────────────────────────────────────────────────
 
@@ -34,12 +35,14 @@ $('btn-view-list').addEventListener('click', () => setView('list'));
 
 // ── Quick nav ─────────────────────────────────────────────────────────────────
 
-$('btn-staging').onclick = () => {
+$('btn-staging').onclick = e => {
+  e.preventDefault();
   if (state.config?.roots?.staging) navigate(state.config.roots.staging);
   else toast('Staging folder not configured in config.json', 'warning');
 };
 
-$('btn-library').onclick = () => {
+$('btn-library').onclick = e => {
+  e.preventDefault();
   if (state.config?.roots?.library) navigate(state.config.roots.library);
 };
 
@@ -100,7 +103,15 @@ setInterval(() => {
 }, 5000);
 
 window.addEventListener('popstate', e => {
-  if (e.state?.path) navigate(e.state.path, { historyMode: 'none' });
+  closeZitPage();
+  closeQwenPage();
+  if (e.state?.page === 'zit') openZitPage();
+  else if (e.state?.page === 'qwen') openQwenPage();
+  else if (e.state?.path) navigate(e.state.path, { historyMode: 'none' });
+  else {
+    const p = urlToPath(location.pathname, location.search);
+    if (p) navigate(p, { historyMode: 'none' });
+  }
 });
 
 // ── Init ──────────────────────────────────────────────────────────────────────
@@ -116,7 +127,16 @@ window.addEventListener('popstate', e => {
   state.folderViews = state.config.folderViews || {};
   await loadBookmarks();
 
-  const fromUrl = urlToPath(location.pathname);
+  const origPathname = location.pathname;
+  const fromUrl = urlToPath(location.pathname, location.search);
   const start = fromUrl || state.config.roots?.staging || state.config.roots?.library;
-  if (start) navigate(start, { historyMode: 'replace' });
+  if (start) await navigate(start, { historyMode: 'replace' });
+
+  if (origPathname === '/zit') {
+    history.pushState({ page: 'zit' }, '', '/zit');
+    openZitPage();
+  } else if (origPathname === '/qwen') {
+    history.pushState({ page: 'qwen' }, '', '/qwen');
+    openQwenPage();
+  }
 })();

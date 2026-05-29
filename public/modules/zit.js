@@ -1,11 +1,11 @@
 import { api } from './api.js';
 import { $, toast } from './helpers.js';
+import { loadSavedPrompts, renderSavedPrompts, saveNewPrompt } from './saved-prompts.js';
 
 const RECENT_KEY = 'zit-recent-prompts';
 const RECENT_MAX = 10;
 
 let saveMode = false;
-let savedPrompts = [];
 
 // ── Recent prompts (localStorage) ─────────────────────────────────────────────
 
@@ -16,74 +16,6 @@ function getRecent() {
 function addRecent(text) {
   const list = [text, ...getRecent().filter(t => t !== text)].slice(0, RECENT_MAX);
   localStorage.setItem(RECENT_KEY, JSON.stringify(list));
-}
-
-// ── Saved prompts ─────────────────────────────────────────────────────────────
-
-async function loadSavedPrompts() {
-  try {
-    savedPrompts = await api.zitPromptsList();
-  } catch {
-    savedPrompts = [];
-  }
-  renderSaved();
-}
-
-function renderSaved() {
-  const list = $('zit-saved-list');
-  if (!savedPrompts.length) {
-    list.innerHTML = '<span class="zit-empty">No saved prompts yet.</span>';
-    return;
-  }
-  list.innerHTML = '';
-  for (const p of savedPrompts) {
-    const item = document.createElement('div');
-    item.className = 'zit-saved-item';
-    item.dataset.id = p.id;
-
-    const thumb = document.createElement('div');
-    thumb.className = 'zit-saved-thumb';
-    if (p.imageFile) {
-      const img = document.createElement('img');
-      img.src = `/api/zit-prompts/${p.id}/image?t=${Date.now()}`;
-      img.alt = '';
-      img.loading = 'lazy';
-      thumb.appendChild(img);
-    } else {
-      thumb.innerHTML = '<sl-icon name="image"></sl-icon>';
-      thumb.classList.add('zit-saved-thumb--empty');
-    }
-    item.appendChild(thumb);
-
-    const title = document.createElement('span');
-    title.className = 'zit-saved-title';
-    title.textContent = p.title;
-    item.appendChild(title);
-
-    const del = document.createElement('button');
-    del.className = 'zit-saved-delete';
-    del.title = 'Delete saved prompt';
-    del.innerHTML = '&times;';
-    del.addEventListener('click', async (e) => {
-      e.stopPropagation();
-      if (!confirm(`Delete "${p.title}"?`)) return;
-      try {
-        await api.zitPromptsDelete(p.id);
-        savedPrompts = savedPrompts.filter(s => s.id !== p.id);
-        renderSaved();
-      } catch (err) {
-        toast(`Delete failed: ${err.message}`, 'danger');
-      }
-    });
-    item.appendChild(del);
-
-    item.addEventListener('click', () => {
-      $('zit-prompt').value = p.text;
-      $('zit-prompt').focus();
-    });
-
-    list.appendChild(item);
-  }
 }
 
 function renderRecent() {
@@ -122,22 +54,31 @@ function setSaveMode(on) {
 
 // ── Open / close ──────────────────────────────────────────────────────────────
 
-function open() {
+export async function openZitPage() {
   $('zit-status').textContent = '';
   $('btn-zit-submit').loading = false;
   setSaveMode(false);
   $('zit-page').style.display = 'flex';
-  loadSavedPrompts();
+  await loadSavedPrompts();
+  renderSavedPrompts($('zit-saved-list'), p => {
+    $('zit-prompt').value = p.text;
+    $('zit-prompt').focus();
+  });
   renderRecent();
   setTimeout(() => $('zit-prompt').focus(), 120);
 }
 
-function close() {
+export function closeZitPage() {
   $('zit-page').style.display = 'none';
 }
 
-$('btn-zit-txt2img').addEventListener('click', open);
-$('zit-back').addEventListener('click', close);
+$('btn-zit-txt2img').addEventListener('click', e => {
+  e.preventDefault();
+  history.pushState({ page: 'zit' }, '', '/zit');
+  openZitPage();
+});
+
+$('zit-back').addEventListener('click', () => history.back());
 
 $('zit-paste').addEventListener('click', async () => {
   try {
@@ -175,10 +116,13 @@ $('btn-zit-submit').addEventListener('click', async () => {
     const title = $('zit-title').value.trim();
     if (!title) { toast('Enter a title for the saved prompt', 'warning'); $('zit-title').focus(); return; }
     try {
-      const saved = await api.zitPromptsSave({ title, text: prompt });
+      const saved = await saveNewPrompt(title, prompt, false);
       savedPromptId = saved.id;
-      savedPrompts.push(saved);
-      savedPrompts.sort((a, b) => a.title.localeCompare(b.title));
+      renderSavedPrompts($('zit-saved-list'), p => {
+        $('zit-prompt').value = p.text;
+        $('zit-prompt').focus();
+      });
+      setSaveMode(false);
     } catch (err) {
       toast(`Save failed: ${err.message}`, 'danger');
       return;

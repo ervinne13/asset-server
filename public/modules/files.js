@@ -2,7 +2,7 @@ import { state } from './state.js';
 import { api } from './api.js';
 import { $, isImg, isVideo, fmtSize, fmtDate } from './helpers.js';
 import { handleItemClick, selectFile } from './selection.js';
-import { navigate } from './router.js'; // circular dep — fine at runtime
+import { navigate, pathToUrl } from './router.js'; // circular dep — fine at runtime
 import { openLightbox } from './lightbox.js'; // circular dep — fine at runtime
 import { isMobile } from './mobile.js';
 
@@ -27,15 +27,20 @@ export function renderFiles(items) {
 }
 
 export function makeCard(item) {
-  const card = document.createElement('div');
+  const card = document.createElement(item.isDir ? 'a' : 'div');
   card.className = 'file-card';
 
   const thumb = document.createElement('div');
   thumb.className = 'card-thumb';
 
   if (item.isDir) {
+    card.href = pathToUrl(item.path);
     thumb.innerHTML = `<sl-icon name="folder2-open"></sl-icon>`;
-    card.onclick = e => (e.ctrlKey || e.metaKey) ? handleItemClick(e, item) : navigate(item.path);
+    card.onclick = e => {
+      e.preventDefault();
+      if (e.ctrlKey || e.metaKey) handleItemClick(e, item);
+      else navigate(item.path);
+    };
   } else {
     if (isImg(item.name)) {
       const img = document.createElement('img');
@@ -79,7 +84,7 @@ export function makeCard(item) {
 }
 
 export function makeRow(item) {
-  const row = document.createElement('div');
+  const row = document.createElement(item.isDir ? 'a' : 'div');
   row.className = 'file-row';
 
   const iconName = item.isDir ? 'folder2'
@@ -111,7 +116,12 @@ export function makeRow(item) {
       }
     };
   } else {
-    row.onclick = e => (e.ctrlKey || e.metaKey) ? handleItemClick(e, item) : navigate(item.path);
+    row.href = pathToUrl(item.path);
+    row.onclick = e => {
+      e.preventDefault();
+      if (e.ctrlKey || e.metaKey) handleItemClick(e, item);
+      else navigate(item.path);
+    };
   }
 
   return row;

@@ -31,14 +31,14 @@ router.get('/api/zit-prompts', (req, res) => {
 });
 
 router.post('/api/zit-prompts', (req, res) => {
-  const { title, text } = req.body;
+  const { title, text, nsfw } = req.body;
   if (!title?.trim()) return res.status(400).json({ error: 'title required' });
   if (!text?.trim()) return res.status(400).json({ error: 'text required' });
 
   ensureDataDir();
   const prompts = loadPrompts();
   const id = Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
-  const entry = { id, title: title.trim(), text: text.trim(), createdAt: new Date().toISOString() };
+  const entry = { id, title: title.trim(), text: text.trim(), nsfw: !!nsfw, createdAt: new Date().toISOString() };
   prompts.push(entry);
   savePrompts(prompts);
   res.json(entry);

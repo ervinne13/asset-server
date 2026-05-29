@@ -17,12 +17,16 @@ export function pathToUrl(absPath) {
     const rel = absPath.slice(library.length);
     return '/library' + rel.split('/').map(encodeURIComponent).join('/');
   }
-  return '/';
+  return '/?path=' + encodeURIComponent(absPath);
 }
 
-export function urlToPath(pathname) {
+export function urlToPath(pathname, search = '') {
   const { staging, library } = state.config?.roots || {};
-  if (!pathname || pathname === '/') return null;
+  if (!pathname || pathname === '/') {
+    const params = new URLSearchParams(search);
+    if (params.has('path')) return params.get('path');
+    return null;
+  }
   if (pathname.startsWith('/staging')) {
     const rel = pathname.slice('/staging'.length);
     return (staging || '') + rel.split('/').map(decodeURIComponent).join('/');
@@ -31,6 +35,8 @@ export function urlToPath(pathname) {
     const rel = pathname.slice('/library'.length);
     return (library || '') + rel.split('/').map(decodeURIComponent).join('/');
   }
+  const params = new URLSearchParams(search);
+  if (params.has('path')) return params.get('path');
   return null;
 }
 
@@ -112,10 +118,15 @@ function renderBreadcrumb(dirPath) {
 
   function crumb(label, path) {
     const item = document.createElement('sl-breadcrumb-item');
-    item.textContent = label;
     if (path) {
-      item.style.cursor = 'pointer';
-      item.addEventListener('click', () => navigate(path));
+      const a = document.createElement('a');
+      a.href = pathToUrl(path);
+      a.textContent = label;
+      a.style.cssText = 'color:inherit;text-decoration:none';
+      a.addEventListener('click', e => { e.preventDefault(); navigate(path); });
+      item.appendChild(a);
+    } else {
+      item.textContent = label;
     }
     bc.appendChild(item);
   }

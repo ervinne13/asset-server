@@ -78,6 +78,7 @@ body {
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+  text-decoration: none;
 }
 
 .sidebar-item:hover {
@@ -314,6 +315,8 @@ body {
   display: flex;
   flex-direction: column;
   transition: border-color 0.1s;
+  text-decoration: none;
+  color: inherit;
 }
 
 .file-card:hover {
@@ -390,6 +393,8 @@ body {
   border-radius: var(--sl-border-radius-small);
   cursor: pointer;
   font-size: 13px;
+  text-decoration: none;
+  color: inherit;
 }
 
 .file-row:hover {
@@ -1688,4 +1693,179 @@ body {
   border-bottom-left-radius: 0;
   padding-inline: 0.75em;
   border-left: 1px solid rgba(255, 255, 255, 0.2);
+}
+
+/* ── Saved prompts: shared title row + mid layout ────────────────────────── */
+
+.zit-saved-mid {
+  flex: 1;
+  min-width: 0;
+}
+
+.zit-saved-title-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  overflow: hidden;
+}
+
+/* ── NSFW pill ─────────────────────────────────────────────────────────────── */
+
+.nsfw-pill {
+  display: inline-flex;
+  align-items: center;
+  background: var(--sl-color-danger-600);
+  color: #fff;
+  border-radius: var(--sl-border-radius-pill);
+  padding: 1px 7px;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  flex-shrink: 0;
+  line-height: 1.6;
+  font-family: var(--sl-font-sans);
+}
+
+.sidebar-nsfw-pill {
+  padding: 0 5px;
+  font-size: 9px;
+}
+
+/* ── Qwen I2I image slots ────────────────────────────────────────────────── */
+
+.qi-image-slots {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+}
+
+.qi-img-slot-wrap {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.qi-img-slot-label {
+  font-size: 11px;
+  color: var(--sl-color-neutral-500);
+  font-weight: var(--sl-font-weight-semibold);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.qi-img-slot {
+  border: 1.5px dashed var(--sl-color-neutral-300);
+  border-radius: var(--sl-border-radius-medium);
+  height: 120px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  cursor: pointer;
+  color: var(--sl-color-neutral-400);
+  font-size: 12px;
+  overflow: hidden;
+  transition: border-color 0.15s, background 0.15s;
+  position: relative;
+}
+
+.qi-img-slot sl-icon {
+  font-size: 24px;
+}
+
+.qi-img-slot:hover {
+  border-color: var(--sl-color-primary-400);
+  background: var(--sl-color-neutral-50);
+}
+
+.qi-img-slot.has-image {
+  border-style: solid;
+  border-color: var(--sl-color-primary-400);
+}
+
+.qi-img-slot-preview {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.qi-img-slot-name {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  background: rgba(0, 0, 0, 0.6);
+  color: #fff;
+  font-size: 10px;
+  padding: 3px 6px;
+  text-overflow: ellipsis;
+  overflow: hidden;
+  white-space: nowrap;
+}
+
+/* ── Dimensions row in advanced options ──────────────────────────────────── */
+
+.qi-dimensions-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+}
+
+/* ── Image picker dialog ─────────────────────────────────────────────────── */
+
+.img-picker-body {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.img-picker-upload-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.img-picker-preview {
+  width: 64px;
+  height: 64px;
+  border-radius: var(--sl-border-radius-medium);
+  overflow: hidden;
+  border: 1px solid var(--sl-color-neutral-300);
+  flex-shrink: 0;
+}
+
+.img-picker-preview img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.img-picker-sep {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 11px;
+  color: var(--sl-color-neutral-400);
+  white-space: nowrap;
+}
+
+.img-picker-sep::before,
+.img-picker-sep::after {
+  content: '';
+  flex: 1;
+  height: 1px;
+  background: var(--sl-color-neutral-200);
+}
+
+.img-picker-tree {
+  min-height: 200px;
+  max-height: 50vh;
+  overflow-y: auto;
+  border: 1px solid var(--sl-color-neutral-300);
+  border-radius: var(--sl-border-radius-medium);
+  padding: 4px;
 }

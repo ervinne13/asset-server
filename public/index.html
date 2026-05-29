@@ -31,7 +31,9 @@
   <link rel="modulepreload" href="/modules/prompt.js" />
   <link rel="modulepreload" href="/modules/generate.js" />
   <link rel="modulepreload" href="/modules/comfyui-status.js" />
+  <link rel="modulepreload" href="/modules/saved-prompts.js" />
   <link rel="modulepreload" href="/modules/zit.js" />
+  <link rel="modulepreload" href="/modules/qwen-i2i.js" />
 </head>
 <body>
   <div class="shell">
@@ -45,20 +47,24 @@
       </div>
 
       <div class="sidebar-section-label">Quick Access</div>
-      <button class="sidebar-item staging" id="btn-staging">
+      <a class="sidebar-item staging" id="btn-staging" href="/staging">
         <sl-icon name="lightning-charge-fill"></sl-icon>
         Staging
-      </button>
-      <button class="sidebar-item" id="btn-library">
+      </a>
+      <a class="sidebar-item" id="btn-library" href="/library">
         <sl-icon name="folder2"></sl-icon>
         Library Root
-      </button>
+      </a>
 
       <div class="sidebar-section-label">AI</div>
-      <button class="sidebar-item" id="btn-zit-txt2img">
+      <a class="sidebar-item" id="btn-zit-txt2img" href="/zit">
         <sl-icon name="stars"></sl-icon>
         ZIT Txt2Img
-      </button>
+      </a>
+      <a class="sidebar-item" id="btn-qwen-i2i" href="/qwen">
+        <sl-icon name="images"></sl-icon>
+        Qwen I2I <span class="nsfw-pill sidebar-nsfw-pill">NSFW</span>
+      </a>
 
       <div class="sidebar-section-label">Bookmarks</div>
       <div id="bookmark-list"></div>
@@ -321,6 +327,150 @@
             </sl-button>
             <sl-menu>
               <sl-menu-item id="zit-menu-save-generate">
+                <sl-icon slot="prefix" name="bookmark-plus"></sl-icon>
+                Save Prompt &amp; Generate
+              </sl-menu-item>
+            </sl-menu>
+          </sl-dropdown>
+        </div>
+
+      </div>
+    </div>
+  </div>
+
+  <!-- ── Image Picker Dialog ── -->
+  <sl-dialog id="img-picker-dialog" label="Select Image" style="--width:560px;--sl-z-index-dialog:10001">
+    <div class="img-picker-body">
+      <div class="img-picker-upload-row">
+        <input type="file" id="img-picker-file" accept="image/*" style="display:none" />
+        <button id="img-picker-upload-btn" class="action-btn">
+          <sl-icon name="upload"></sl-icon> Upload from device
+        </button>
+        <div id="img-picker-preview" class="img-picker-preview" style="display:none">
+          <img id="img-picker-preview-img" src="" alt="" />
+        </div>
+      </div>
+      <div class="img-picker-sep">or select from library</div>
+      <sl-tree id="img-picker-tree" selection="single" class="img-picker-tree"></sl-tree>
+    </div>
+    <div slot="footer" style="display:flex;gap:8px;align-items:center;width:100%">
+      <sl-button id="img-picker-clear" variant="default" style="margin-right:auto">
+        <sl-icon slot="prefix" name="x-circle"></sl-icon>Clear
+      </sl-button>
+      <sl-button id="img-picker-cancel" variant="default">Cancel</sl-button>
+      <sl-button id="img-picker-confirm" variant="primary">Select</sl-button>
+    </div>
+  </sl-dialog>
+
+  <!-- ── Qwen I2I NSFW Page (full-screen overlay) ── -->
+  <div id="qwen-i2i-page" class="zit-page" style="display:none">
+    <div class="gen-header">
+      <button id="qwen-i2i-back" class="gen-back-btn" title="Back">
+        <sl-icon name="arrow-left"></sl-icon>
+      </button>
+      <span class="gen-title">Qwen I2I &nbsp;<span class="nsfw-pill">NSFW</span></span>
+      <span id="qwen-i2i-status" class="gen-status"></span>
+    </div>
+    <div class="zit-content">
+      <div class="zit-inner">
+
+        <!-- Saved prompts -->
+        <div class="zit-section">
+          <div class="zit-section-header">
+            <sl-icon name="bookmark"></sl-icon>
+            <span>Saved Prompts</span>
+          </div>
+          <div id="qi-saved-list" class="zit-saved-list"></div>
+        </div>
+
+        <!-- Recent history -->
+        <div class="zit-section" id="qi-recent-section" style="display:none">
+          <div class="zit-section-header">
+            <sl-icon name="clock-history"></sl-icon>
+            <span>Recent</span>
+          </div>
+          <div id="qi-recent-list" class="zit-recent-list"></div>
+        </div>
+
+        <!-- Image slots -->
+        <div class="zit-section">
+          <div class="zit-section-header">
+            <sl-icon name="images"></sl-icon>
+            <span>Images <small style="font-weight:normal;text-transform:none;letter-spacing:0">(optional — click to select)</small></span>
+          </div>
+          <div class="qi-image-slots">
+            <div class="qi-img-slot-wrap">
+              <div class="qi-img-slot-label">Main Image</div>
+              <div id="qi-main-img-slot" class="qi-img-slot">
+                <sl-icon name="image"></sl-icon>
+                <span>Click to select</span>
+              </div>
+            </div>
+            <div class="qi-img-slot-wrap">
+              <div class="qi-img-slot-label">Support Image</div>
+              <div id="qi-support-img-slot" class="qi-img-slot">
+                <sl-icon name="image"></sl-icon>
+                <span>Click to select</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Textarea -->
+        <div class="zit-textarea-wrap">
+          <textarea id="qi-prompt" class="zit-textarea" placeholder="Describe the edit or scene…" spellcheck="true"></textarea>
+          <button id="qi-paste" class="zit-paste-btn" title="Paste from clipboard">
+            <sl-icon name="clipboard"></sl-icon>
+          </button>
+        </div>
+
+        <!-- Advanced options -->
+        <details class="gen-advanced">
+          <summary>Advanced options</summary>
+          <div class="gen-advanced-body">
+            <label class="gen-label">Negative prompt</label>
+            <textarea id="qi-negative" class="gen-textarea gen-textarea-sm" rows="3" placeholder="watermark, text, blurry, bad anatomy"></textarea>
+            <div class="qi-dimensions-row">
+              <div>
+                <label class="gen-label">Width</label>
+                <input id="qi-width" type="number" class="gen-seed-input" value="1024" min="512" max="2048" step="64" />
+              </div>
+              <div>
+                <label class="gen-label">Height</label>
+                <input id="qi-height" type="number" class="gen-seed-input" value="1536" min="512" max="2048" step="64" />
+              </div>
+            </div>
+          </div>
+        </details>
+
+        <!-- Generation count -->
+        <div class="zit-batch-row">
+          <span class="zit-batch-label">Generation Count</span>
+          <sl-radio-group id="qi-count" value="1" size="small">
+            <sl-radio-button value="1">1</sl-radio-button>
+            <sl-radio-button value="2">2</sl-radio-button>
+            <sl-radio-button value="3">3</sl-radio-button>
+            <sl-radio-button value="4">4</sl-radio-button>
+          </sl-radio-group>
+        </div>
+
+        <!-- Title row (save mode only) -->
+        <div id="qi-title-row" class="zit-title-row" style="display:none">
+          <input id="qi-title" type="text" class="zit-title-input" placeholder="Prompt title (required to save)" />
+          <button id="qi-save-mode-cancel" class="zit-save-cancel" title="Cancel save mode">&times;</button>
+        </div>
+
+        <!-- Split submit button -->
+        <div class="zit-submit-group">
+          <sl-button variant="primary" id="btn-qi-submit" size="large" class="zit-submit-btn">
+            <sl-icon slot="prefix" name="stars"></sl-icon>Generate
+          </sl-button>
+          <sl-dropdown id="qi-submit-menu" placement="top-end">
+            <sl-button slot="trigger" variant="primary" size="large" class="zit-menu-btn">
+              <sl-icon id="qi-caret-icon" name="chevron-down"></sl-icon>
+            </sl-button>
+            <sl-menu>
+              <sl-menu-item id="qi-menu-save-generate">
                 <sl-icon slot="prefix" name="bookmark-plus"></sl-icon>
                 Save Prompt &amp; Generate
               </sl-menu-item>
