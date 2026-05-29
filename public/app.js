@@ -16,6 +16,7 @@ import './modules/move.js';
 import './modules/trash.js';
 import './modules/keyboard.js';
 import './modules/comfyui-status.js';
+import './modules/claude-status.js';
 import { openZitPage, closeZitPage } from './modules/zit.js';
 import { openQwenPage, closeQwenPage } from './modules/qwen-i2i.js';
 

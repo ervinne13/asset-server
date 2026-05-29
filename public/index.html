@@ -31,6 +31,7 @@
   <link rel="modulepreload" href="/modules/prompt.js" />
   <link rel="modulepreload" href="/modules/generate.js" />
   <link rel="modulepreload" href="/modules/comfyui-status.js" />
+  <link rel="modulepreload" href="/modules/claude-status.js" />
   <link rel="modulepreload" href="/modules/saved-prompts.js" />
   <link rel="modulepreload" href="/modules/zit.js" />
   <link rel="modulepreload" href="/modules/qwen-i2i.js" />
@@ -73,6 +74,7 @@
         <span class="comfyui-dot"></span>
         <span class="comfyui-label"></span>
       </div>
+      <sl-button id="btn-claude-status" size="small" variant="neutral" data-running="0" style="margin:8px 12px 12px">Claude: OFF</sl-button>
     </aside>
 
     <!-- ── Middle: Explorer ── -->
@@ -297,6 +299,9 @@
           <button id="zit-paste" class="zit-paste-btn" title="Paste from clipboard">
             <sl-icon name="clipboard"></sl-icon>
           </button>
+          <button id="zit-clear" class="zit-paste-btn" title="Clear text">
+            <sl-icon name="x-lg"></sl-icon>
+          </button>
         </div>
 
         <!-- Batch count -->
@@ -421,6 +426,9 @@
           <textarea id="qi-prompt" class="zit-textarea" placeholder="Describe the edit or scene…" spellcheck="true"></textarea>
           <button id="qi-paste" class="zit-paste-btn" title="Paste from clipboard">
             <sl-icon name="clipboard"></sl-icon>
+          </button>
+          <button id="qi-clear" class="zit-paste-btn" title="Clear text">
+            <sl-icon name="x-lg"></sl-icon>
           </button>
         </div>
 

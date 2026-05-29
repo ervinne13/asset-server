@@ -63,7 +63,11 @@ router.get('/api/download', (req, res) => {
 router.get('/files/*', (req, res) => {
   const filePath = '/' + req.params[0];
   if (!isAllowedPath(filePath)) return res.status(403).send('Forbidden');
-  res.sendFile(filePath, { headers: { 'Cache-Control': 'public, max-age=86400' } });
+  // ?t= is the mtime timestamp — URL changes when file changes, so it's safe to cache immutably
+  const cacheControl = req.query.t
+    ? 'public, max-age=31536000, immutable'
+    : 'public, max-age=86400';
+  res.sendFile(filePath, { headers: { 'Cache-Control': cacheControl } });
 });
 
 module.exports = router;

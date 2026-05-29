@@ -3,6 +3,9 @@ set -e
 
 cd "$(dirname "$0")/.."
 
+# Host is the first argument — matches a Host entry in ~/.ssh/config.
+# Usage: ./scripts/deploy.sh [host]
+# Defaults to "forge" (local network). Use "forge-ts" when outside home.
 if [ ! -f .env ]; then
   echo "Error: .env not found." >&2
   exit 1
@@ -12,43 +15,26 @@ set -a
 source .env
 set +a
 
-SSH_ARGS="-p ${SSH_PORT:-22} -o StrictHostKeyChecking=accept-new"
+SSH_HOST="${1:-forge}"
 
-# Auth: password via sshpass (SSHPASS env var), or key, or default agent
-if [ -n "$SSH_PASSWORD" ]; then
-  if ! command -v sshpass &>/dev/null; then
-    echo "Error: sshpass is required for password auth — brew install sshpass" >&2
-    exit 1
-  fi
-  export SSHPASS="$SSH_PASSWORD"
-  SSHPASS_PREFIX="sshpass -e"
-elif [ -n "$SSH_KEY" ]; then
-  SSH_ARGS="$SSH_ARGS -i $SSH_KEY"
-  SSHPASS_PREFIX=""
-else
-  SSHPASS_PREFIX=""
-fi
+echo "→ Syncing to $SSH_HOST:$REMOTE_PATH"
 
-DEST="${SSH_USER:-ervinne}@${SSH_HOST:?SSH_HOST is required}"
-
-echo "→ Syncing to $DEST:$REMOTE_PATH"
-
-# Write current git hash as VERSION so the server can use it for cache-busting
+# Write current timestamp as VERSION for cache-busting
 date +%s > VERSION
 
-$SSHPASS_PREFIX rsync -az --progress \
+rsync -az --progress \
   --exclude='.git/' \
   --exclude='.env' \
   --exclude='node_modules/' \
   --exclude='config.json' \
   --exclude='index/' \
-  -e "ssh $SSH_ARGS" \
-  . "$DEST:$REMOTE_PATH"
+  -e "ssh" \
+  . "$SSH_HOST:$REMOTE_PATH"
 
 echo "→ Installing dependencies"
-$SSHPASS_PREFIX ssh $SSH_ARGS "$DEST" "bash -l -c 'cd $REMOTE_PATH && npm install --omit=dev'"
+ssh "$SSH_HOST" "bash -l -c 'cd $REMOTE_PATH && npm install --omit=dev'"
 
 echo "→ Restarting service"
-$SSHPASS_PREFIX ssh $SSH_ARGS "$DEST" "sudo systemctl restart asset-server"
+ssh "$SSH_HOST" "sudo systemctl restart asset-server"
 
-echo "✓ Deployed → http://$SSH_HOST:${SERVER_PORT:-3000}"
+echo "✓ Deployed → $SSH_HOST"

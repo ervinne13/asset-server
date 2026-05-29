@@ -90,6 +90,11 @@ $('zit-paste').addEventListener('click', async () => {
   }
 });
 
+$('zit-clear').addEventListener('click', () => {
+  $('zit-prompt').value = '';
+  $('zit-prompt').focus();
+});
+
 // ── Dropdown ──────────────────────────────────────────────────────────────────
 
 const caretIcon = $('zit-caret-icon');

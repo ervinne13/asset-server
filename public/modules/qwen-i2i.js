@@ -276,6 +276,11 @@ $('qi-paste').addEventListener('click', async () => {
   }
 });
 
+$('qi-clear').addEventListener('click', () => {
+  $('qi-prompt').value = '';
+  $('qi-prompt').focus();
+});
+
 // ── Dropdown ──────────────────────────────────────────────────────────────────
 
 const caretIcon = $('qi-caret-icon');

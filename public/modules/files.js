@@ -45,6 +45,8 @@ export function makeCard(item) {
     if (isImg(item.name)) {
       const img = document.createElement('img');
       img.loading = 'lazy';
+      img.decoding = 'async';
+      img.fetchPriority = 'low';
       img.alt = item.name;
       img.src = api.fileUrl(item.path, item.mtime);
       thumb.appendChild(img);
