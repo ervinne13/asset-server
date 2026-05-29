@@ -19,6 +19,8 @@ import './modules/comfyui-status.js';
 import './modules/claude-status.js';
 import { openZitPage, closeZitPage } from './modules/zit.js';
 import { openQwenPage, closeQwenPage } from './modules/qwen-i2i.js';
+import { openLtxPage, closeLtxPage } from './modules/ltx-i2v.js';
+import { openQueuePage, closeQueuePage } from './modules/comfyui-queue.js';
 
 // ── View toggle ───────────────────────────────────────────────────────────────
 
@@ -106,8 +108,12 @@ setInterval(() => {
 window.addEventListener('popstate', e => {
   closeZitPage();
   closeQwenPage();
+  closeLtxPage();
+  closeQueuePage();
   if (e.state?.page === 'zit') openZitPage();
   else if (e.state?.page === 'qwen') openQwenPage();
+  else if (e.state?.page === 'ltx') openLtxPage();
+  else if (e.state?.page === 'comfy-queue') openQueuePage();
   else if (e.state?.path) navigate(e.state.path, { historyMode: 'none' });
   else {
     const p = urlToPath(location.pathname, location.search);
@@ -129,7 +135,15 @@ window.addEventListener('popstate', e => {
   await loadBookmarks();
 
   const origPathname = location.pathname;
-  const fromUrl = urlToPath(location.pathname, location.search);
+  const fromUrl = urlToPath(origPathname, location.search);
+
+  // Queue is the default home view
+  if (origPathname === '/comfy-queue' || (origPathname === '/' && !fromUrl)) {
+    history.replaceState({ page: 'comfy-queue' }, '', '/comfy-queue');
+    openQueuePage();
+    return;
+  }
+
   const start = fromUrl || state.config.roots?.staging || state.config.roots?.library;
   if (start) await navigate(start, { historyMode: 'replace' });
 
@@ -139,5 +153,8 @@ window.addEventListener('popstate', e => {
   } else if (origPathname === '/qwen') {
     history.pushState({ page: 'qwen' }, '', '/qwen');
     openQwenPage();
+  } else if (origPathname === '/ltx-i2v') {
+    history.pushState({ page: 'ltx' }, '', '/ltx-i2v');
+    openLtxPage();
   }
 })();

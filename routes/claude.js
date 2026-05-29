@@ -29,8 +29,12 @@ router.post('/api/claude/start', async (req, res) => {
     // session doesn't exist — create it
   }
   try {
-    await tmux(['new-session', '-d', '-s', 'comfyui-mcp', '-c', '/home/ervinne/projects/comfyui-mcp', 'claude']);
+    await tmux(['new-session', '-d', '-s', 'comfyui-mcp', '-c', '/home/ervinne/projects/comfyui-mcp', 'claude', '--model', 'claude-sonnet-4-6']);
     res.json({ ok: true });
+    // wait for claude to initialize, then activate remote control
+    setTimeout(() => {
+      tmux(['send-keys', '-t', 'comfyui-mcp', '/remote-control', 'Enter']).catch(() => {});
+    }, 3000);
   } catch (err) {
     res.status(500).json({ error: err.message });
   }

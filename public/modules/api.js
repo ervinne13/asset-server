@@ -29,8 +29,7 @@ export const api = {
   saveTags: (p, tags) => api.post('/api/tags', { path: p, tags }),
   tagVocab: () => api.get('/api/tags/vocab'),
   generate: body => api.post('/api/comfyui/generate', body),
-  comfyStatus: () => api.get('/api/comfyui/status'),
-  zitTxt2Img: (prompt, seed, savedPromptId) => api.post('/api/comfyui/zit-txt2img', { prompt, seed, savedPromptId }),
+  zitTxt2Img: (prompt, seed, savedPromptId, width, height) => api.post('/api/comfyui/zit-txt2img', { prompt, seed, savedPromptId, width, height }),
   zitPromptsList: () => api.get('/api/zit-prompts'),
   zitPromptsSave: body => api.post('/api/zit-prompts', body),
   zitPromptsDelete: id => api.del(`/api/zit-prompts/${id}`, {}),
@@ -44,4 +43,8 @@ export const api = {
   }),
   uploadImageFromPath: p => api.post('/api/comfyui/upload-image', { path: p }),
   qwenI2iNsfw: body => api.post('/api/comfyui/qwen-i2i-nsfw', body),
+  ltxI2v: body => api.post('/api/comfyui/ltx-i2v', body),
+  comfyQueue: () => api.get('/api/comfyui/queue'),
+  comfyCancel: promptId => api.post('/api/comfyui/cancel', { promptId }),
+  comfyInterrupt: () => api.post('/api/comfyui/interrupt', {}),
 };

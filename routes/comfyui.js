@@ -85,7 +85,7 @@ router.post('/api/comfyui/generate', async (req, res) => {
 });
 
 router.post('/api/comfyui/zit-txt2img', async (req, res) => {
-  const { prompt, seed, savedPromptId } = req.body;
+  const { prompt, seed, savedPromptId, width, height } = req.body;
   if (!prompt || !prompt.trim()) return res.status(400).json({ error: 'prompt required' });
 
   const url = comfyUrl(loadConfig());
@@ -93,6 +93,8 @@ router.post('/api/comfyui/zit-txt2img', async (req, res) => {
 
   workflow['57:27'].inputs.text = prompt.trim();
   workflow['57:3'].inputs.seed = (seed != null && !isNaN(seed)) ? seed : Math.floor(Math.random() * 2 ** 32);
+  if (width) workflow['57:13'].inputs.width = parseInt(width);
+  if (height) workflow['57:13'].inputs.height = parseInt(height);
   workflow['9'].inputs.filename_prefix = datePrefix('zit');
 
   try {
@@ -144,6 +146,116 @@ router.post('/api/comfyui/upload-image', async (req, res) => {
     res.status(500).json({ error: err.message });
   } finally {
     if (isTemp && filePath) { try { fs.unlinkSync(filePath); } catch {} }
+  }
+});
+
+router.post('/api/comfyui/ltx-i2v', async (req, res) => {
+  const { prompt, image, duration } = req.body;
+  if (!prompt?.trim()) return res.status(400).json({ error: 'prompt required' });
+  if (!image) return res.status(400).json({ error: 'image required' });
+
+  const url = comfyUrl(loadConfig());
+  const workflow = JSON.parse(fs.readFileSync(path.join(WORKFLOWS_DIR, 'ltx-i2v.api.json'), 'utf8'));
+
+  workflow['324'].inputs.image = image;
+  workflow['320:319'].inputs.value = prompt.trim();
+  workflow['320:301'].inputs.value = [3, 5, 10, 15].includes(Number(duration)) ? Number(duration) : 5;
+  workflow['75'].inputs.filename_prefix = datePrefix('ltx-i2v');
+  const seed = Math.floor(Math.random() * 2 ** 32);
+  workflow['320:276'].inputs.noise_seed = seed;
+  workflow['320:277'].inputs.noise_seed = seed + 1;
+
+  try {
+    const result = await comfyPost(url, '/api/prompt', { prompt: workflow });
+    res.json({ ok: true, promptId: result.prompt_id });
+  } catch (err) {
+    res.status(500).json({ error: `ComfyUI submit failed: ${err.message}` });
+  }
+});
+
+function extractJobInfo(nodes) {
+  const prefix = nodes['9']?.inputs?.filename_prefix
+    || nodes['6']?.inputs?.filename_prefix
+    || nodes['75']?.inputs?.filename_prefix
+    || nodes['45']?.inputs?.filename_prefix
+    || '';
+
+  let workflow = 'unknown';
+  let workflowLabel = 'Unknown';
+  let prompt = '';
+  let image = null;
+
+  if (prefix.includes('/zit-')) {
+    workflow = 'zit';
+    workflowLabel = 'ZIT T2I';
+    prompt = nodes['57:27']?.inputs?.text || '';
+  } else if (prefix.includes('/qwen-nsfw-')) {
+    workflow = 'qwen-nsfw';
+    workflowLabel = 'Qwen I2I';
+    prompt = nodes['12']?.inputs?.text || '';
+    image = nodes['11']?.inputs?.image || null;
+  } else if (prefix.includes('/ltx-i2v-')) {
+    workflow = 'ltx-i2v';
+    workflowLabel = 'LTX I2V';
+    prompt = nodes['320:319']?.inputs?.value || '';
+    image = nodes['324']?.inputs?.image || null;
+  } else if (prefix.includes('/qwen-')) {
+    workflow = 'qwen';
+    workflowLabel = 'Qwen Edit';
+    prompt = nodes['62']?.inputs?.value || '';
+    image = nodes['47']?.inputs?.image || null;
+  }
+
+  if (!prompt) {
+    const prompts = extractPrompts(JSON.stringify(nodes));
+    prompt = prompts[0]?.text || '';
+  }
+
+  let submittedAt = null;
+  const m = prefix.match(/(\d{8})(\d{4})$/);
+  if (m) {
+    submittedAt = `${m[1].slice(0, 4)}-${m[1].slice(4, 6)}-${m[1].slice(6, 8)}T${m[2].slice(0, 2)}:${m[2].slice(2, 4)}:00`;
+  }
+
+  return { workflow, workflowLabel, prefix, prompt, image, submittedAt };
+}
+
+router.get('/api/comfyui/queue', async (req, res) => {
+  const url = comfyUrl(loadConfig());
+  try {
+    const queue = await comfyGet(url, '/api/queue');
+    const parseJob = (entry, status) => {
+      const [queueNum, promptId, nodes] = entry;
+      return { queueNum, promptId, status, ...extractJobInfo(nodes || {}) };
+    };
+    res.json({
+      running: (queue.queue_running || []).map(e => parseJob(e, 'running')),
+      pending: (queue.queue_pending || []).map(e => parseJob(e, 'pending')),
+    });
+  } catch (err) {
+    res.status(503).json({ error: err.message });
+  }
+});
+
+router.post('/api/comfyui/cancel', async (req, res) => {
+  const { promptId } = req.body;
+  if (!promptId) return res.status(400).json({ error: 'promptId required' });
+  const url = comfyUrl(loadConfig());
+  try {
+    await comfyPost(url, '/api/queue', { delete: [promptId] });
+    res.json({ ok: true });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+router.post('/api/comfyui/interrupt', async (req, res) => {
+  const url = comfyUrl(loadConfig());
+  try {
+    await comfyPost(url, '/api/interrupt', {});
+    res.json({ ok: true });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
   }
 });
 

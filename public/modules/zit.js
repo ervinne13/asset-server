@@ -135,6 +135,8 @@ $('btn-zit-submit').addEventListener('click', async () => {
   }
 
   const count = parseInt($('zit-count').value) || 1;
+  const dimVal = $('zit-dimensions').value;
+  const [width, height] = dimVal.split('x').map(Number);
   const btn = $('btn-zit-submit');
   btn.loading = true;
   $('zit-status').textContent = 'Submitting…';
@@ -143,7 +145,7 @@ $('btn-zit-submit').addEventListener('click', async () => {
     addRecent(prompt);
     await Promise.all(
       Array.from({ length: count }, (_, i) =>
-        api.zitTxt2Img(prompt, undefined, i === 0 ? savedPromptId : null)
+        api.zitTxt2Img(prompt, undefined, i === 0 ? savedPromptId : null, width, height)
       )
     );
     close();

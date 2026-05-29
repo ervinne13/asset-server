@@ -1,25 +1,45 @@
 import { api } from './api.js';
 
-const el = document.getElementById('comfyui-status');
-const dot = el.querySelector('.comfyui-dot');
-const label = el.querySelector('.comfyui-label');
+const sidebarItem = document.getElementById('btn-comfy-queue');
+const dot = sidebarItem.querySelector('.comfyui-dot');
+const countEl = document.getElementById('comfy-jobs-count');
+
+export let currentQueue = { running: [], pending: [] };
+
+function setStatus(state) {
+  sidebarItem.classList.remove('running', 'idle', 'offline', 'pending');
+  sidebarItem.classList.add(state);
+}
 
 async function poll() {
   try {
-    const { running, queueDepth } = await api.comfyStatus();
+    const queue = await api.comfyQueue();
+    currentQueue = queue;
+    const total = queue.running.length + queue.pending.length;
+    const running = queue.running.length > 0;
+
     if (running) {
-      el.className = 'comfyui-status running';
-      el.title = queueDepth > 1 ? `Generating — ${queueDepth - 1} more queued` : 'Generating…';
-      label.textContent = queueDepth > 1 ? `ComfyUI · Generating +${queueDepth - 1}` : 'ComfyUI · Generating…';
+      setStatus('running');
+      if (total > 1) {
+        countEl.textContent = `${total} jobs`;
+        countEl.style.display = '';
+      } else {
+        countEl.style.display = 'none';
+      }
+    } else if (total > 0) {
+      setStatus('pending');
+      countEl.textContent = `${total} queued`;
+      countEl.style.display = '';
     } else {
-      el.className = 'comfyui-status idle';
-      el.title = 'ComfyUI idle';
-      label.textContent = 'ComfyUI · Idle';
+      setStatus('idle');
+      countEl.style.display = 'none';
     }
+
+    document.dispatchEvent(new CustomEvent('comfyui-queue-update', { detail: queue }));
   } catch {
-    el.className = 'comfyui-status offline';
-    el.title = 'ComfyUI unreachable';
-    label.textContent = 'ComfyUI · Offline';
+    setStatus('offline');
+    countEl.style.display = 'none';
+    document.dispatchEvent(new CustomEvent('comfyui-queue-update', { detail: { running: [], pending: [] } }));
   }
 }
 

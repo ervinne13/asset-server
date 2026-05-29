@@ -9,6 +9,9 @@ export function refreshSelectionVisuals() {
 }
 
 export function updateRightPanel() {
+  // Queue view owns the right panel on desktop — don't fight it
+  if (document.getElementById('comfy-queue-view')?.style.display === 'flex') return;
+
   const n = state.selectedFiles.size;
   const bulkPanel = $('bulk-panel');
   const previewEmpty = $('preview-empty');

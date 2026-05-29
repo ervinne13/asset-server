@@ -33,8 +33,11 @@
   <link rel="modulepreload" href="/modules/comfyui-status.js" />
   <link rel="modulepreload" href="/modules/claude-status.js" />
   <link rel="modulepreload" href="/modules/saved-prompts.js" />
+  <link rel="modulepreload" href="/modules/img-picker.js" />
   <link rel="modulepreload" href="/modules/zit.js" />
   <link rel="modulepreload" href="/modules/qwen-i2i.js" />
+  <link rel="modulepreload" href="/modules/ltx-i2v.js" />
+  <link rel="modulepreload" href="/modules/comfyui-queue.js" />
 </head>
 <body>
   <div class="shell">
@@ -48,6 +51,11 @@
       </div>
 
       <div class="sidebar-section-label">Quick Access</div>
+      <a class="sidebar-item comfyui-status idle" id="btn-comfy-queue" href="/comfy-queue">
+        <span class="comfyui-dot"></span>
+        ComfyUI Status
+        <span class="comfy-jobs-count" id="comfy-jobs-count" style="display:none"></span>
+      </a>
       <a class="sidebar-item staging" id="btn-staging" href="/staging">
         <sl-icon name="lightning-charge-fill"></sl-icon>
         Staging
@@ -60,20 +68,20 @@
       <div class="sidebar-section-label">AI</div>
       <a class="sidebar-item" id="btn-zit-txt2img" href="/zit">
         <sl-icon name="stars"></sl-icon>
-        ZIT Txt2Img
+        ZIT T2I
       </a>
       <a class="sidebar-item" id="btn-qwen-i2i" href="/qwen">
         <sl-icon name="images"></sl-icon>
         Qwen I2I <span class="nsfw-pill sidebar-nsfw-pill">NSFW</span>
       </a>
+      <a class="sidebar-item" id="btn-ltx-i2v" href="/ltx-i2v">
+        <sl-icon name="film"></sl-icon>
+        LTX I2V
+      </a>
 
       <div class="sidebar-section-label">Bookmarks</div>
       <div id="bookmark-list"></div>
 
-      <div id="comfyui-status" class="comfyui-status" title="ComfyUI status">
-        <span class="comfyui-dot"></span>
-        <span class="comfyui-label"></span>
-      </div>
       <sl-button id="btn-claude-status" size="small" variant="neutral" data-running="0" style="margin:8px 12px 12px">Claude: OFF</sl-button>
     </aside>
 
@@ -102,6 +110,15 @@
       </div>
 
       <div id="file-grid" class="file-grid view-grid"></div>
+
+      <!-- Queue view — replaces file-grid on desktop when queue is open -->
+      <div id="comfy-queue-view" style="display:none">
+        <div class="cq-view-header">
+          <span class="cq-view-title">ComfyUI Queue</span>
+          <span id="comfy-queue-count" class="cq-view-count"></span>
+        </div>
+        <div id="comfy-queue-list-desktop" class="comfy-queue-list-desktop"></div>
+      </div>
     </main>
 
     <!-- ── Right: Preview ── -->
@@ -144,6 +161,10 @@
       <div id="preview-empty" class="preview-empty">
         <sl-icon name="image" style="font-size:3rem;opacity:0.15"></sl-icon>
         <span>Select a file</span>
+      </div>
+      <!-- Queue job detail — shown in place of preview when queue is active on desktop -->
+      <div id="queue-job-panel" style="display:none">
+        <div class="cqd-empty">Select a job to see details</div>
       </div>
       <div id="preview-content" class="preview-content" style="display:none">
         <div class="preview-media-wrap" id="preview-media-wrap">
@@ -263,13 +284,14 @@
     </div>
   </div>
 
-  <!-- ── ZIT Txt2Img Page (full-screen overlay) ── -->
+  <!-- ── ZIT T2I Page (full-screen overlay) ── -->
   <div id="zit-page" class="zit-page" style="display:none">
     <div class="gen-header">
       <button id="zit-back" class="gen-back-btn" title="Back">
         <sl-icon name="arrow-left"></sl-icon>
       </button>
-      <span class="gen-title">ZIT Txt2Img</span>
+      <span class="gen-title">ZIT T2I</span>
+      <span id="zit-queue-badge" class="workflow-queue-badge" style="display:none"></span>
       <span id="zit-status" class="gen-status"></span>
     </div>
     <div class="zit-content">
@@ -302,6 +324,38 @@
           <button id="zit-clear" class="zit-paste-btn" title="Clear text">
             <sl-icon name="x-lg"></sl-icon>
           </button>
+        </div>
+
+        <!-- Dimensions -->
+        <div class="zit-batch-row">
+          <span class="zit-batch-label">Size</span>
+          <select id="zit-dimensions" class="gen-seed-input zit-dim-select">
+            <optgroup label="Portrait 2:3">
+              <option value="768x1152">Low 2:3 — 768×1152</option>
+              <option value="1024x1536" selected>Med 2:3 — 1024×1536</option>
+              <option value="1280x1920">High 2:3 — 1280×1920</option>
+            </optgroup>
+            <optgroup label="Landscape 3:2">
+              <option value="1152x768">Low 3:2 — 1152×768</option>
+              <option value="1536x1024">Med 3:2 — 1536×1024</option>
+              <option value="1920x1280">High 3:2 — 1920×1280</option>
+            </optgroup>
+            <optgroup label="Portrait 9:16">
+              <option value="576x1024">Low 9:16 — 576×1024</option>
+              <option value="720x1280">Med 9:16 — 720×1280</option>
+              <option value="864x1536">High 9:16 — 864×1536</option>
+            </optgroup>
+            <optgroup label="Landscape 16:9">
+              <option value="1024x576">Low 16:9 — 1024×576</option>
+              <option value="1280x720">Med 16:9 — 1280×720</option>
+              <option value="1536x864">High 16:9 — 1536×864</option>
+            </optgroup>
+            <optgroup label="Square 1:1">
+              <option value="768x768">Low 1:1 — 768×768</option>
+              <option value="1024x1024">Med 1:1 — 1024×1024</option>
+              <option value="1280x1280">High 1:1 — 1280×1280</option>
+            </optgroup>
+          </select>
         </div>
 
         <!-- Batch count -->
@@ -374,6 +428,7 @@
         <sl-icon name="arrow-left"></sl-icon>
       </button>
       <span class="gen-title">Qwen I2I &nbsp;<span class="nsfw-pill">NSFW</span></span>
+      <span id="qi-queue-badge" class="workflow-queue-badge" style="display:none"></span>
       <span id="qwen-i2i-status" class="gen-status"></span>
     </div>
     <div class="zit-content">
@@ -487,6 +542,140 @@
         </div>
 
       </div>
+    </div>
+  </div>
+
+  <!-- ── LTX I2V Page (full-screen overlay) ── -->
+  <div id="ltx-i2v-page" class="zit-page" style="display:none">
+    <div class="gen-header">
+      <button id="ltx-i2v-back" class="gen-back-btn" title="Back">
+        <sl-icon name="arrow-left"></sl-icon>
+      </button>
+      <span class="gen-title">LTX I2V</span>
+      <span id="ltx-queue-badge" class="workflow-queue-badge" style="display:none"></span>
+      <span id="ltx-i2v-status" class="gen-status"></span>
+    </div>
+    <div class="zit-content">
+      <div class="zit-inner">
+
+        <!-- Saved prompts -->
+        <div class="zit-section">
+          <div class="zit-section-header">
+            <sl-icon name="bookmark"></sl-icon>
+            <span>Saved Prompts</span>
+          </div>
+          <div id="ltx-saved-list" class="zit-saved-list"></div>
+        </div>
+
+        <!-- Recent history -->
+        <div class="zit-section" id="ltx-recent-section" style="display:none">
+          <div class="zit-section-header">
+            <sl-icon name="clock-history"></sl-icon>
+            <span>Recent</span>
+          </div>
+          <div id="ltx-recent-list" class="zit-recent-list"></div>
+        </div>
+
+        <!-- Image slot -->
+        <div class="zit-section">
+          <div class="zit-section-header">
+            <sl-icon name="image"></sl-icon>
+            <span>Input Image <small style="font-weight:normal;text-transform:none;letter-spacing:0">(required — click to select)</small></span>
+          </div>
+          <div class="qi-image-slots">
+            <div class="qi-img-slot-wrap">
+              <div id="ltx-img-slot" class="qi-img-slot">
+                <sl-icon name="image"></sl-icon>
+                <span>Click to select</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Textarea -->
+        <div class="zit-textarea-wrap">
+          <textarea id="ltx-prompt" class="zit-textarea" placeholder="Describe the motion and scene…" spellcheck="true"></textarea>
+          <button id="ltx-paste" class="zit-paste-btn" title="Paste from clipboard">
+            <sl-icon name="clipboard"></sl-icon>
+          </button>
+          <button id="ltx-clear" class="zit-paste-btn" title="Clear text">
+            <sl-icon name="x-lg"></sl-icon>
+          </button>
+        </div>
+
+        <!-- Duration -->
+        <div class="zit-batch-row">
+          <span class="zit-batch-label">Duration</span>
+          <sl-radio-group id="ltx-duration" value="5" size="small">
+            <sl-radio-button value="3">3s</sl-radio-button>
+            <sl-radio-button value="5">5s</sl-radio-button>
+            <sl-radio-button value="10">10s</sl-radio-button>
+            <sl-radio-button value="15">15s</sl-radio-button>
+          </sl-radio-group>
+        </div>
+
+        <!-- Batch count -->
+        <div class="zit-batch-row">
+          <span class="zit-batch-label">Count</span>
+          <sl-radio-group id="ltx-count" value="1" size="small">
+            <sl-radio-button value="1">1</sl-radio-button>
+            <sl-radio-button value="2">2</sl-radio-button>
+            <sl-radio-button value="3">3</sl-radio-button>
+            <sl-radio-button value="4">4</sl-radio-button>
+          </sl-radio-group>
+        </div>
+
+        <!-- Title row (save mode only) -->
+        <div id="ltx-title-row" class="zit-title-row" style="display:none">
+          <input id="ltx-title" type="text" class="zit-title-input" placeholder="Prompt title (required to save)" />
+          <button id="ltx-save-mode-cancel" class="zit-save-cancel" title="Cancel save mode">&times;</button>
+        </div>
+
+        <!-- Split submit button -->
+        <div class="zit-submit-group">
+          <sl-button variant="primary" id="btn-ltx-submit" size="large" class="zit-submit-btn">
+            <sl-icon slot="prefix" name="film"></sl-icon>Generate
+          </sl-button>
+          <sl-dropdown id="ltx-submit-menu" placement="top-end">
+            <sl-button slot="trigger" variant="primary" size="large" class="zit-menu-btn">
+              <sl-icon id="ltx-caret-icon" name="chevron-down"></sl-icon>
+            </sl-button>
+            <sl-menu>
+              <sl-menu-item id="ltx-menu-save-generate">
+                <sl-icon slot="prefix" name="bookmark-plus"></sl-icon>
+                Save Prompt &amp; Generate
+              </sl-menu-item>
+            </sl-menu>
+          </sl-dropdown>
+        </div>
+
+      </div>
+    </div>
+  </div>
+
+  <!-- ── ComfyUI Queue Page (full-screen overlay) ── -->
+  <div id="comfy-queue-page" class="zit-page" style="display:none">
+    <div class="gen-header">
+      <button id="comfy-queue-back" class="gen-back-btn" title="Back">
+        <sl-icon name="arrow-left"></sl-icon>
+      </button>
+      <span class="gen-title">ComfyUI Queue</span>
+      <span id="comfy-queue-status" class="gen-status"></span>
+    </div>
+    <div class="comfy-queue-body">
+      <div class="comfy-queue-list" id="comfy-queue-list">
+        <div class="comfy-queue-empty">No jobs in queue</div>
+      </div>
+    </div>
+    <!-- Mobile detail overlay (inside the page) -->
+    <div id="comfy-queue-mobile-detail" class="comfy-mobile-detail" style="display:none">
+      <div class="comfy-mobile-detail-header">
+        <button id="comfy-mobile-detail-back" class="gen-back-btn" title="Back">
+          <sl-icon name="arrow-left"></sl-icon>
+        </button>
+        <span>Job Details</span>
+      </div>
+      <div class="cqd-inner"></div>
     </div>
   </div>
 

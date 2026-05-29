@@ -44,6 +44,7 @@ export async function navigate(dirPath, { historyMode = 'push' } = {}) {
   if (state.currentPath) state.scrollPositions[state.currentPath] = $('file-grid').scrollTop;
   state.currentPath = dirPath;
   closeMobileSidebar();
+  document.dispatchEvent(new CustomEvent('app-navigate'));
   clearSelection();
   clearPreview();
   renderBookmarks();
