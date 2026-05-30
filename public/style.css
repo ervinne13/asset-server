@@ -581,7 +581,8 @@ body {
   background: var(--sl-color-neutral-200);
 }
 
-.card-thumb img {
+.card-thumb img,
+.card-thumb video {
   width: 100%;
   height: 100%;
   object-fit: cover;
@@ -1013,7 +1014,16 @@ body {
   background: var(--sl-color-neutral-400);
 }
 
+/* Ensure sl-dialog panels render above the lightbox (z-index: 10000) */
+sl-dialog {
+  --sl-z-index-dialog: 11000;
+}
+
 /* ── Lightbox (photo mode) ─────────────────────────── */
+
+.lb-top-name {
+  display: none;
+}
 
 .lightbox {
   position: fixed;
@@ -1231,17 +1241,43 @@ body {
     padding: 8px;
   }
 
-  /* Lightbox: bigger nav buttons for fingers */
+  /* Lightbox: smaller semi-transparent nav buttons overlaid on image */
   .lb-nav {
-    width: 52px;
-    height: 52px;
-    font-size: 40px;
+    width: 44px;
+    height: 44px;
+    font-size: 26px;
+    background: rgba(0, 0, 0, 0.3);
+    opacity: 0.8;
   }
 
-  .lb-prev { left: 8px; }
-  .lb-next { right: 8px; }
+  .lb-prev { left: 6px; }
+  .lb-next { right: 6px; }
 
-  .lb-media { width: calc(100% - 120px); }
+  /* Full-width image — nav buttons now overlay it */
+  .lb-media { width: 100%; }
+
+  /* Filename at top, aligned with X button */
+  .lb-top-name {
+    display: block;
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 52px;
+    height: 50px;
+    line-height: 50px;
+    padding: 0 12px;
+    color: rgba(255, 255, 255, 0.75);
+    font-size: 12px;
+    font-family: var(--sl-font-sans);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    z-index: 2;
+    pointer-events: none;
+    background: linear-gradient(to bottom, rgba(0,0,0,0.45) 0%, transparent 100%);
+  }
+
+  #lb-name { display: none; }
 
   /* Toolbar: tighter on mobile */
   .toolbar { padding: 6px 8px; }

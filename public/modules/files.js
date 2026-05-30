@@ -51,7 +51,30 @@ export function makeCard(item) {
       img.src = api.fileUrl(item.path, item.mtime);
       thumb.appendChild(img);
     } else if (isVideo(item.name)) {
-      thumb.innerHTML = `<sl-icon name="camera-video"></sl-icon>`;
+      const videoThumb = document.createElement('video');
+      videoThumb.muted = true;
+      videoThumb.playsInline = true;
+      videoThumb.preload = 'none';
+      videoThumb.style.display = 'none';
+
+      const iconWrap = document.createElement('span');
+      iconWrap.innerHTML = '<sl-icon name="camera-video"></sl-icon>';
+
+      const obs = new IntersectionObserver((entries, o) => {
+        if (!entries[0].isIntersecting) return;
+        o.disconnect();
+        videoThumb.src = api.fileUrl(item.path, item.mtime);
+        videoThumb.preload = 'metadata';
+        videoThumb.addEventListener('loadedmetadata', () => { videoThumb.currentTime = 1; });
+        videoThumb.addEventListener('seeked', () => {
+          videoThumb.style.display = '';
+          iconWrap.style.display = 'none';
+        }, { once: true });
+      }, { rootMargin: '300px' });
+
+      thumb.appendChild(videoThumb);
+      thumb.appendChild(iconWrap);
+      obs.observe(thumb);
     } else {
       thumb.innerHTML = `<sl-icon name="file-earmark"></sl-icon>`;
     }

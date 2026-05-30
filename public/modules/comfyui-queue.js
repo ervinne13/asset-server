@@ -1,9 +1,12 @@
 import { api } from './api.js';
 import { $, toast } from './helpers.js';
 import { currentQueue } from './comfyui-status.js';
+import { navigate } from './router.js';
+import { state } from './state.js';
 
 let selectedJob = null;
 let queueOpen = false;
+let justOpened = false;
 
 function isMobile() {
   return window.innerWidth < 768;
@@ -81,6 +84,8 @@ function renderDesktop(queue) {
 function openMobile() {
   $('comfy-queue-page').style.display = 'flex';
   $('comfy-queue-mobile-detail').style.display = 'none';
+  justOpened = true;
+  setTimeout(() => { justOpened = false; }, 400);
   renderMobile(currentQueue || { running: [], pending: [] });
 }
 
@@ -130,6 +135,7 @@ function renderJobList(listEl, queue) {
 }
 
 function selectJob(job, itemEl) {
+  if (justOpened) return;
   selectedJob = job;
   document.querySelectorAll('.comfy-queue-item').forEach(el => el.classList.remove('selected'));
   itemEl.classList.add('selected');
@@ -145,6 +151,15 @@ function formatTime(iso) {
   const d = new Date(iso);
   if (isNaN(d)) return '';
   return d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+}
+
+function formatElapsed(iso) {
+  if (!iso) return '';
+  const ms = Date.now() - new Date(iso).getTime();
+  if (isNaN(ms) || ms < 0) return '';
+  const secs = Math.floor(ms / 1000);
+  const mins = Math.floor(secs / 60);
+  return mins > 0 ? `${mins}m ${secs % 60}s` : `${secs}s`;
 }
 
 // ── Detail rendering ──────────────────────────────────────────────────────────
@@ -172,6 +187,12 @@ function buildDetailHTML(job) {
       <div class="cqd-field">
         <div class="cqd-label">Queued at</div>
         <div class="cqd-value">${formatTime(job.submittedAt)}</div>
+      </div>
+    ` : ''}
+    ${job.status === 'running' && job.submittedAt ? `
+      <div class="cqd-field">
+        <div class="cqd-label">Elapsed</div>
+        <div class="cqd-value">${formatElapsed(job.submittedAt)}</div>
       </div>
     ` : ''}
     <div class="cqd-actions">
@@ -274,7 +295,15 @@ $('btn-comfy-queue').addEventListener('click', e => {
   openQueuePage();
 });
 
-$('comfy-queue-back').addEventListener('click', () => history.back());
+$('comfy-queue-back').addEventListener('click', () => {
+  if (history.length > 1) {
+    history.back();
+  } else {
+    closeQueuePage();
+    const start = state.config?.roots?.staging || state.config?.roots?.library;
+    if (start) navigate(start);
+  }
+});
 $('comfy-mobile-detail-back').addEventListener('click', () => {
   $('comfy-queue-mobile-detail').style.display = 'none';
 });

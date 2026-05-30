@@ -8,7 +8,7 @@ import { openTagDialog } from './tags.js';
 import { openPromptDialog } from './prompt.js';
 import { openGenerateDialog } from './generate.js';
 
-let imgEl, videoEl, nameEl, counterEl, prevBtn, nextBtn, lbPromptBtn, lbGenerateBtn;
+let imgEl, videoEl, nameEl, nameTopEl, counterEl, prevBtn, nextBtn, lbPromptBtn, lbGenerateBtn;
 
 // Lazy DOM build — only creates the overlay on first open
 function buildDOM() {
@@ -16,6 +16,7 @@ function buildDOM() {
   overlay.id = 'lightbox';
   overlay.className = 'lightbox';
   overlay.innerHTML = `
+    <span class="lb-top-name" id="lb-name-top"></span>
     <button class="lb-close" id="lb-close" title="Close (Esc)">✕</button>
     <div class="lb-stage">
       <button class="lb-nav lb-prev" id="lb-prev">&#8249;</button>
@@ -52,6 +53,7 @@ function buildDOM() {
   imgEl      = document.getElementById('lb-img');
   videoEl    = document.getElementById('lb-video');
   nameEl     = document.getElementById('lb-name');
+  nameTopEl  = document.getElementById('lb-name-top');
   counterEl  = document.getElementById('lb-counter');
   prevBtn    = document.getElementById('lb-prev');
   nextBtn    = document.getElementById('lb-next');
@@ -114,6 +116,7 @@ function showItem(item) {
   const items = mediaItems();
   const idx   = items.findIndex(i => i.path === item.path);
   nameEl.textContent    = item.name;
+  if (nameTopEl) nameTopEl.textContent = item.name;
   counterEl.textContent = items.length > 1 ? `${idx + 1} / ${items.length}` : '';
   prevBtn.style.visibility = idx > 0                ? '' : 'hidden';
   nextBtn.style.visibility = idx < items.length - 1 ? '' : 'hidden';
