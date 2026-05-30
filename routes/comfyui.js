@@ -5,7 +5,7 @@ const path = require('path');
 const { execFileSync } = require('child_process');
 const { loadConfig, isAllowedPath } = require('../lib/config');
 const { comfyGet, comfyPost, readPngTextChunks, extractPrompts } = require('../lib/comfyui');
-const { pollAndSaveImage } = require('./zit-prompts');
+const { pollAndSaveImage } = require('./saved-prompts');
 
 const router = express.Router();
 const WORKFLOWS_DIR = path.join(__dirname, '..', 'workflows');
@@ -185,21 +185,26 @@ function extractJobInfo(nodes) {
   let prompt = '';
   let image = null;
 
-  if (prefix.includes('/zit-')) {
+  const isLtx = prefix.includes('/ltx-i2v-') || nodes['75']?.class_type === 'SaveVideo';
+  const isZit = !isLtx && (prefix.includes('/zit-') || nodes['9']?.class_type === 'SaveImage');
+  const isQwenNsfw = !isLtx && !isZit && (prefix.includes('/qwen-nsfw-') || nodes['6']?.class_type === 'SaveImage');
+  const isQwen = !isLtx && !isZit && !isQwenNsfw && (prefix.includes('/qwen-') || nodes['45']?.class_type === 'SaveImage');
+
+  if (isZit) {
     workflow = 'zit';
     workflowLabel = 'ZIT T2I';
     prompt = nodes['57:27']?.inputs?.text || '';
-  } else if (prefix.includes('/qwen-nsfw-')) {
+  } else if (isQwenNsfw) {
     workflow = 'qwen-nsfw';
     workflowLabel = 'Qwen I2I';
     prompt = nodes['12']?.inputs?.text || '';
     image = nodes['11']?.inputs?.image || null;
-  } else if (prefix.includes('/ltx-i2v-')) {
+  } else if (isLtx) {
     workflow = 'ltx-i2v';
     workflowLabel = 'LTX I2V';
     prompt = nodes['320:319']?.inputs?.value || '';
     image = nodes['324']?.inputs?.image || null;
-  } else if (prefix.includes('/qwen-')) {
+  } else if (isQwen) {
     workflow = 'qwen';
     workflowLabel = 'Qwen Edit';
     prompt = nodes['62']?.inputs?.value || '';

@@ -296,13 +296,9 @@ $('btn-comfy-queue').addEventListener('click', e => {
 });
 
 $('comfy-queue-back').addEventListener('click', () => {
-  if (history.length > 1) {
-    history.back();
-  } else {
-    closeQueuePage();
-    const start = state.config?.roots?.staging || state.config?.roots?.library;
-    if (start) navigate(start);
-  }
+  closeQueuePage();
+  const start = state.config?.roots?.staging || state.config?.roots?.library;
+  if (start) navigate(start);
 });
 $('comfy-mobile-detail-back').addEventListener('click', () => {
   $('comfy-queue-mobile-detail').style.display = 'none';

@@ -30,9 +30,9 @@ export const api = {
   tagVocab: () => api.get('/api/tags/vocab'),
   generate: body => api.post('/api/comfyui/generate', body),
   zitTxt2Img: (prompt, seed, savedPromptId, width, height) => api.post('/api/comfyui/zit-txt2img', { prompt, seed, savedPromptId, width, height }),
-  zitPromptsList: () => api.get('/api/zit-prompts'),
-  zitPromptsSave: body => api.post('/api/zit-prompts', body),
-  zitPromptsDelete: id => api.del(`/api/zit-prompts/${id}`, {}),
+  savedPromptsList: () => api.get('/api/saved-prompts'),
+  savedPromptsSave: body => api.post('/api/saved-prompts', body),
+  savedPromptsDelete: id => api.del(`/api/saved-prompts/${id}`, {}),
   uploadImageFromFile: file => fetch('/api/comfyui/upload-image', {
     method: 'POST',
     headers: { 'Content-Type': 'application/octet-stream', 'X-Filename': file.name },

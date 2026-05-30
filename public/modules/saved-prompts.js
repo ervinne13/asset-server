@@ -4,7 +4,7 @@ import { toast } from './helpers.js';
 let savedPrompts = [];
 
 export async function loadSavedPrompts() {
-  try { savedPrompts = await api.zitPromptsList(); }
+  try { savedPrompts = await api.savedPromptsList(); }
   catch { savedPrompts = []; }
   return savedPrompts;
 }
@@ -26,7 +26,7 @@ export function renderSavedPrompts(listEl, onSelect) {
     thumb.className = 'zit-saved-thumb';
     if (p.imageFile) {
       const img = document.createElement('img');
-      img.src = `/api/zit-prompts/${p.id}/image?t=${Date.now()}`;
+      img.src = `/api/saved-prompts/${p.id}/image?t=${Date.now()}`;
       img.alt = '';
       img.loading = 'lazy';
       thumb.appendChild(img);
@@ -65,7 +65,7 @@ export function renderSavedPrompts(listEl, onSelect) {
       e.stopPropagation();
       if (!confirm(`Delete "${p.title}"?`)) return;
       try {
-        await api.zitPromptsDelete(p.id);
+        await api.savedPromptsDelete(p.id);
         savedPrompts = savedPrompts.filter(s => s.id !== p.id);
         renderSavedPrompts(listEl, onSelect);
       } catch (err) {
@@ -79,8 +79,40 @@ export function renderSavedPrompts(listEl, onSelect) {
   }
 }
 
+export function makeRecentPrompts(storageKey, sectionId, listId, inputId) {
+  const MAX = 10;
+  function getRecent() {
+    try { return JSON.parse(localStorage.getItem(storageKey)) || []; } catch { return []; }
+  }
+  function addRecent(text) {
+    const list = [text, ...getRecent().filter(t => t !== text)].slice(0, MAX);
+    localStorage.setItem(storageKey, JSON.stringify(list));
+  }
+  function renderRecent() {
+    const recent = getRecent();
+    const section = document.getElementById(sectionId);
+    const list = document.getElementById(listId);
+    if (!recent.length) { section.style.display = 'none'; return; }
+    section.style.display = '';
+    list.innerHTML = '';
+    for (const text of recent) {
+      const item = document.createElement('div');
+      item.className = 'recent-prompt-item';
+      item.textContent = text.length > 90 ? text.slice(0, 90) + '…' : text;
+      item.title = text;
+      item.addEventListener('click', () => {
+        const input = document.getElementById(inputId);
+        input.value = text;
+        input.focus();
+      });
+      list.appendChild(item);
+    }
+  }
+  return { addRecent, renderRecent };
+}
+
 export async function saveNewPrompt(title, text, nsfw = false) {
-  const saved = await api.zitPromptsSave({ title, text, nsfw });
+  const saved = await api.savedPromptsSave({ title, text, nsfw });
   savedPrompts.push(saved);
   savedPrompts.sort((a, b) => a.title.localeCompare(b.title));
   return saved;

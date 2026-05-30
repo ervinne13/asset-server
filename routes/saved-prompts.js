@@ -24,13 +24,13 @@ function savePrompts(prompts) {
   fs.writeFileSync(PROMPTS_FILE, JSON.stringify(prompts, null, 2));
 }
 
-router.get('/api/zit-prompts', (req, res) => {
+router.get('/api/saved-prompts', (req, res) => {
   const prompts = loadPrompts();
   prompts.sort((a, b) => a.title.localeCompare(b.title));
   res.json(prompts);
 });
 
-router.post('/api/zit-prompts', (req, res) => {
+router.post('/api/saved-prompts', (req, res) => {
   const { title, text, nsfw } = req.body;
   if (!title?.trim()) return res.status(400).json({ error: 'title required' });
   if (!text?.trim()) return res.status(400).json({ error: 'text required' });
@@ -44,7 +44,7 @@ router.post('/api/zit-prompts', (req, res) => {
   res.json(entry);
 });
 
-router.delete('/api/zit-prompts/:id', (req, res) => {
+router.delete('/api/saved-prompts/:id', (req, res) => {
   let prompts = loadPrompts();
   const entry = prompts.find(p => p.id === req.params.id);
   if (!entry) return res.status(404).json({ error: 'not found' });
@@ -55,7 +55,7 @@ router.delete('/api/zit-prompts/:id', (req, res) => {
   res.json({ ok: true });
 });
 
-router.get('/api/zit-prompts/:id/image', (req, res) => {
+router.get('/api/saved-prompts/:id/image', (req, res) => {
   const prompts = loadPrompts();
   const entry = prompts.find(p => p.id === req.params.id);
   if (!entry?.imageFile) return res.status(404).json({ error: 'no image' });
@@ -111,14 +111,14 @@ async function pollAndSaveImage(promptId, savedPromptId) {
         }
         p.imageFile = destFile;
         savePrompts(prompts);
-        console.log(`[zit-prompts] saved image for "${p.title}" → ${destFile}`);
+        console.log(`[saved-prompts] saved image for "${p.title}" → ${destFile}`);
       }
       return;
     } catch (err) {
-      console.error(`[zit-prompts] poll error (attempt ${i + 1}):`, err.message);
+      console.error(`[saved-prompts] poll error (attempt ${i + 1}):`, err.message);
     }
   }
-  console.warn(`[zit-prompts] gave up polling image for savedPromptId=${savedPromptId}`);
+  console.warn(`[saved-prompts] gave up polling image for savedPromptId=${savedPromptId}`);
 }
 
 module.exports = { router, pollAndSaveImage };

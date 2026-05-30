@@ -1,45 +1,13 @@
 import { api } from './api.js';
 import { $, toast } from './helpers.js';
-import { loadSavedPrompts, renderSavedPrompts, saveNewPrompt } from './saved-prompts.js';
+import { loadSavedPrompts, renderSavedPrompts, saveNewPrompt, makeRecentPrompts } from './saved-prompts.js';
 import { openImagePicker, updateSlotUI } from './img-picker.js';
-
-const RECENT_KEY = 'qi-recent-prompts';
-const RECENT_MAX = 10;
 
 let saveMode = false;
 let mainImageInfo = null;
 let supportImageInfo = null;
 
-// ── Recent prompts ────────────────────────────────────────────────────────────
-
-function getRecent() {
-  try { return JSON.parse(localStorage.getItem(RECENT_KEY)) || []; } catch { return []; }
-}
-
-function addRecent(text) {
-  const list = [text, ...getRecent().filter(t => t !== text)].slice(0, RECENT_MAX);
-  localStorage.setItem(RECENT_KEY, JSON.stringify(list));
-}
-
-function renderRecent() {
-  const recent = getRecent();
-  const section = $('qi-recent-section');
-  const list = $('qi-recent-list');
-  if (!recent.length) { section.style.display = 'none'; return; }
-  section.style.display = '';
-  list.innerHTML = '';
-  for (const text of recent) {
-    const item = document.createElement('div');
-    item.className = 'zit-recent-item';
-    item.textContent = text.length > 90 ? text.slice(0, 90) + '…' : text;
-    item.title = text;
-    item.addEventListener('click', () => {
-      $('qi-prompt').value = text;
-      $('qi-prompt').focus();
-    });
-    list.appendChild(item);
-  }
-}
+const { addRecent, renderRecent } = makeRecentPrompts('qi-recent-prompts', 'qi-recent-section', 'qi-recent-list', 'qi-prompt');
 
 // ── Image slots ───────────────────────────────────────────────────────────────
 

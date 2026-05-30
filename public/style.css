@@ -62,6 +62,14 @@ body {
   color: var(--sl-color-neutral-500);
 }
 
+.sidebar-subsection-label {
+  padding: 8px 12px 2px;
+  font-size: 9px;
+  text-transform: uppercase;
+  letter-spacing: 0.07em;
+  color: var(--sl-color-neutral-400);
+}
+
 .sidebar-item {
   display: flex;
   align-items: center;
@@ -1867,7 +1875,7 @@ sl-dialog {
   gap: 3px;
 }
 
-.zit-recent-item {
+.recent-prompt-item {
   font-size: 12px;
   color: var(--sl-color-neutral-700);
   padding: 5px 8px;
@@ -1880,7 +1888,7 @@ sl-dialog {
   border: 1px solid transparent;
 }
 
-.zit-recent-item:hover {
+.recent-prompt-item:hover {
   background: var(--sl-color-neutral-100);
   border-color: var(--sl-color-neutral-200);
 }
