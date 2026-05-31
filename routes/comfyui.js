@@ -4,7 +4,7 @@ const os = require('os');
 const path = require('path');
 const { execFileSync, execFile } = require('child_process');
 const { loadConfig, isAllowedPath } = require('../lib/config');
-const { comfyGet, comfyPost, readPngTextChunks, extractPrompts } = require('../lib/comfyui');
+const { comfyGet, comfyPost, readPngTextChunks, extractPrompts, extractSeed } = require('../lib/comfyui');
 const { pollAndSaveImage } = require('./saved-prompts');
 
 const router = express.Router();
@@ -29,7 +29,8 @@ router.get('/api/prompt', (req, res) => {
   const chunks = readPngTextChunks(filePath);
   let prompts = chunks.workflow ? extractPrompts(chunks.workflow) : [];
   if (!prompts.length && chunks.prompt) prompts = extractPrompts(chunks.prompt);
-  res.json({ prompts });
+  const seed = extractSeed(chunks.workflow || '') ?? extractSeed(chunks.prompt || '');
+  res.json({ prompts, seed });
 });
 
 router.get('/api/comfyui/status', async (req, res) => {

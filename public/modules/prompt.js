@@ -1,6 +1,6 @@
 import { state } from './state.js';
 import { api } from './api.js';
-import { $, toast } from './helpers.js';
+import { $ } from './helpers.js';
 
 export async function openPromptDialog(item) {
   if (!item) return;
@@ -9,46 +9,43 @@ export async function openPromptDialog(item) {
   content.innerHTML = '<span class="prompt-loading">Loading…</span>';
   $('prompt-dialog').show();
 
-  let prompts;
+  let prompts, seed;
   try {
     const data = await api.getPrompt(item.path);
     prompts = data.prompts || [];
+    seed = data.seed ?? null;
   } catch (err) {
     content.innerHTML = `<span class="prompt-empty">Failed to read image: ${err.message}</span>`;
     return;
   }
 
-  if (!prompts.length) {
+  if (!prompts.length && seed == null) {
     content.innerHTML = '<span class="prompt-empty">No workflow data found in this image.</span>';
     return;
   }
 
   content.innerHTML = '';
+
+  if (seed != null) {
+    const seedBlock = document.createElement('div');
+    seedBlock.className = 'prompt-seed';
+    const seedLabel = document.createElement('span');
+    seedLabel.className = 'prompt-block-label';
+    seedLabel.textContent = 'Seed';
+    const seedValue = document.createElement('span');
+    seedValue.className = 'prompt-seed-value';
+    seedValue.textContent = seed;
+    seedBlock.append(seedLabel, seedValue);
+    content.appendChild(seedBlock);
+  }
+
   for (const { title, text } of prompts) {
     const block = document.createElement('div');
     block.className = 'prompt-block';
 
-    const header = document.createElement('div');
-    header.className = 'prompt-block-header';
-
     const label = document.createElement('span');
     label.className = 'prompt-block-label';
     label.textContent = title;
-
-    const copyBtn = document.createElement('button');
-    copyBtn.className = 'prompt-copy-btn';
-    copyBtn.textContent = 'Copy';
-    copyBtn.addEventListener('click', async () => {
-      try {
-        await navigator.clipboard.writeText(text);
-        copyBtn.textContent = 'Copied!';
-        setTimeout(() => { copyBtn.textContent = 'Copy'; }, 1500);
-      } catch {
-        toast('Copy failed — clipboard not available', 'warning');
-      }
-    });
-
-    header.append(label, copyBtn);
 
     const textarea = document.createElement('textarea');
     textarea.className = 'prompt-textarea';
@@ -56,7 +53,7 @@ export async function openPromptDialog(item) {
     textarea.value = text;
     textarea.rows = Math.min(8, Math.max(3, Math.ceil(text.length / 60)));
 
-    block.append(header, textarea);
+    block.append(label, textarea);
     content.appendChild(block);
   }
 }

@@ -22,8 +22,56 @@ export function renderFiles(items) {
   items.forEach(item => {
     const el = state.view === 'grid' ? makeCard(item) : makeRow(item);
     el._item = item;
+    el.dataset.path = item.path;
     grid.appendChild(el);
   });
+}
+
+export function patchFiles(newItems) {
+  const grid = $('file-grid');
+
+  // Fall back to full render when transitioning from/to empty state
+  if (newItems.length === 0 || grid.querySelector('.empty-state')) {
+    renderFiles(newItems);
+    return;
+  }
+
+  // Build map of currently rendered elements by path
+  const existingEls = new Map();
+  for (const child of grid.children) {
+    if (child._item) existingEls.set(child._item.path, child);
+  }
+
+  const newPaths = new Set(newItems.map(i => i.path));
+
+  // Remove elements that are no longer in the listing
+  for (const [p, el] of existingEls) {
+    if (!newPaths.has(p)) grid.removeChild(el);
+  }
+
+  // Insert new elements in their correct sorted position
+  for (let i = 0; i < newItems.length; i++) {
+    const item = newItems[i];
+    if (existingEls.has(item.path)) continue;
+
+    const newEl = state.view === 'grid' ? makeCard(item) : makeRow(item);
+    newEl._item = item;
+    newEl.dataset.path = item.path;
+    newEl.classList.add('item-new');
+    newEl.addEventListener('animationend', () => newEl.classList.remove('item-new'), { once: true });
+
+    // Insert before the next item that already exists in the DOM
+    let inserted = false;
+    for (let j = i + 1; j < newItems.length; j++) {
+      const nextEl = existingEls.get(newItems[j].path);
+      if (nextEl && nextEl.parentNode === grid) {
+        grid.insertBefore(newEl, nextEl);
+        inserted = true;
+        break;
+      }
+    }
+    if (!inserted) grid.appendChild(newEl);
+  }
 }
 
 export function makeCard(item) {

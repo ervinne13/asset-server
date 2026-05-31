@@ -3,7 +3,6 @@ import { api } from './api.js';
 import { isImg, isVideo } from './helpers.js';
 import { selectFile } from './selection.js';
 import { softDelete } from './trash.js'; // circular via files.js — safe, all exports are hoisted functions
-import { copySelectedToClipboard } from './preview.js';
 import { openTagDialog } from './tags.js';
 import { openPromptDialog } from './prompt.js';
 import { openGenerateDialog } from './generate.js';
@@ -28,9 +27,6 @@ function buildDOM() {
     </div>
     <div class="lb-bar">
       <div class="lb-actions">
-        <button class="lb-action-btn" id="lb-copy" title="Copy to clipboard">
-          <sl-icon name="clipboard"></sl-icon>
-        </button>
         <button class="lb-action-btn" id="lb-tag" title="Edit tags">
           <sl-icon name="tag"></sl-icon>
         </button>
@@ -64,7 +60,6 @@ function buildDOM() {
   document.getElementById('lb-delete').onclick = () => {
     if (state.selectedFile) softDelete(state.selectedFile).then(() => updateLightbox());
   };
-  document.getElementById('lb-copy').onclick   = () => copySelectedToClipboard();
   document.getElementById('lb-tag').onclick    = () => openTagDialog(state.selectedFile);
   document.getElementById('lb-prompt').onclick    = () => openPromptDialog(state.selectedFile);
   document.getElementById('lb-generate').onclick  = () => { closeLightbox(); openGenerateDialog(state.selectedFile); };

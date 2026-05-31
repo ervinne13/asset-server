@@ -1,7 +1,7 @@
 import { state } from './state.js';
 import { api } from './api.js';
 import { $, toast, isImg, isVideo } from './helpers.js';
-import { renderFiles } from './files.js';           // circular dep — fine at runtime
+import { renderFiles, patchFiles } from './files.js'; // circular dep — fine at runtime
 import { clearPreview } from './preview.js';
 import { clearSelection, refreshSelectionVisuals, updateRightPanel } from './selection.js';
 import { renderBookmarks } from './bookmarks.js';   // circular dep — fine at runtime
@@ -84,7 +84,7 @@ export async function silentRefresh() {
   try { items = await api.ls(state.currentPath); } catch { return; }
 
   state.currentItems = items;
-  renderFiles(items);
+  patchFiles(items);
 
   // Drop selected paths that disappeared
   const presentPaths = new Set(items.map(i => i.path));

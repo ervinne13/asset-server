@@ -990,6 +990,22 @@ body {
   }
 }
 
+.item-new {
+  animation: item-appear 0.4s ease;
+}
+
+@keyframes item-appear {
+  from {
+    opacity: 0;
+    transform: scale(0.95);
+  }
+
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
 .undo-toast-msg {
   flex: 1;
   font-size: 13px;
@@ -1485,10 +1501,23 @@ sl-dialog {
   gap: 6px;
 }
 
-.prompt-block-header {
+.prompt-seed {
   display: flex;
-  align-items: center;
-  justify-content: space-between;
+  flex-direction: column;
+  gap: 4px;
+  padding: 10px 12px;
+  background: var(--sl-color-neutral-100);
+  border-radius: var(--sl-border-radius-medium);
+  border: 1px solid var(--sl-color-neutral-200);
+}
+
+.prompt-seed-value {
+  font-family: var(--sl-font-mono);
+  font-size: 20px;
+  font-weight: var(--sl-font-weight-semibold);
+  color: var(--sl-color-neutral-900);
+  letter-spacing: 0.04em;
+  user-select: all;
 }
 
 .prompt-block-label {
@@ -1499,22 +1528,6 @@ sl-dialog {
   font-weight: var(--sl-font-weight-semibold);
 }
 
-.prompt-copy-btn {
-  background: none;
-  border: 1px solid var(--sl-color-neutral-300);
-  border-radius: var(--sl-border-radius-small);
-  color: var(--sl-color-neutral-600);
-  font-size: 11px;
-  font-family: inherit;
-  padding: 2px 8px;
-  cursor: pointer;
-  transition: background 0.1s, color 0.1s;
-}
-
-.prompt-copy-btn:hover {
-  background: var(--sl-color-neutral-200);
-  color: var(--sl-color-neutral-900);
-}
 
 .prompt-textarea {
   width: 100%;

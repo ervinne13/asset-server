@@ -122,7 +122,6 @@ export async function copySelectedToClipboard() {
   }
 }
 
-$('btn-copy-file').addEventListener('click', copySelectedToClipboard);
 $('btn-generate-open').addEventListener('click', () => openGenerateDialog(state.selectedFile));
 
 $('btn-creative-video').addEventListener('click', async () => {
