@@ -44,6 +44,7 @@ export const api = {
   uploadImageFromPath: p => api.post('/api/comfyui/upload-image', { path: p }),
   qwenI2iNsfw: body => api.post('/api/comfyui/qwen-i2i-nsfw', body),
   ltxI2v: body => api.post('/api/comfyui/ltx-i2v', body),
+  creativeVideo: filePath => api.post('/api/comfyui/creative-video', { filePath }),
   comfyQueue: () => api.get('/api/comfyui/queue'),
   comfyCancel: promptId => api.post('/api/comfyui/cancel', { promptId }),
   comfyInterrupt: () => api.post('/api/comfyui/interrupt', {}),

@@ -2,7 +2,7 @@ const express = require('express');
 const fs = require('fs');
 const os = require('os');
 const path = require('path');
-const { execFileSync } = require('child_process');
+const { execFileSync, execFile } = require('child_process');
 const { loadConfig, isAllowedPath } = require('../lib/config');
 const { comfyGet, comfyPost, readPngTextChunks, extractPrompts } = require('../lib/comfyui');
 const { pollAndSaveImage } = require('./saved-prompts');
@@ -160,7 +160,7 @@ router.post('/api/comfyui/ltx-i2v', async (req, res) => {
   workflow['324'].inputs.image = image;
   workflow['320:319'].inputs.value = prompt.trim();
   workflow['320:301'].inputs.value = [3, 5, 10, 15].includes(Number(duration)) ? Number(duration) : 5;
-  workflow['75'].inputs.filename_prefix = datePrefix('ltx-i2v');
+  workflow['75'].inputs.filename_prefix = `${new Date().toISOString().slice(0,10).replace(/-/g,'')}/video/ltx-`;
   const seed = Math.floor(Math.random() * 2 ** 32);
   workflow['320:276'].inputs.noise_seed = seed;
   workflow['320:277'].inputs.noise_seed = seed + 1;
@@ -173,6 +173,154 @@ router.post('/api/comfyui/ltx-i2v', async (req, res) => {
   }
 });
 
+const VIDEO_DIRECTION_SYSTEM = `You are a prompt engineer for OpenOppAI - a short-form AI video content page that animates photorealistic images using LTX 2.3.
+
+Content style: SFW but borderline. Think suggestive, eye-catching, tasteful - not explicit. The goal is allure through motion, that ends up something we can still post on social media, mainly x/twitter.
+
+HARD STOPS - never generate under any circumstances:
+- CSAM or anything involving minors
+- Full nudity (bare breasts are sometimes fine if the art direction calls for it, but NEVER genitalia)
+- Explicit sexual acts or simulated sex
+- Non-consensual framing or degrading content
+
+ENCOURAGED within those limits:
+- Natural incidental exposure from movement (skirts, loose clothing, wind)
+- Idle body motion - leg swings, hair tosses, stretching, leaning
+- Confident, candid, or unaware-of-camera poses animated naturally
+- Subtle clothing movement that draws attention without crossing the line
+- Cinematic locked-camera shots, photorealistic quality
+- Exhibitionism or voyeur scenarios
+- Upskirts from everyday scenes
+- Narrative arc in a single clip: establish -> disruption -> reaction -> action
+- Emotional beat changes readable on the face (distraction -> realization -> annoyance)
+- "Caught" scenarios where the subject becomes aware of the viewer mid-clip
+- Motion that builds toward camera rather than stays neutral
+- Gravure shoots, catwalks, elegant pose variations as it fits the image
+- Striptease or intimate dancing
+- The payoff should feel earned, not just appended
+
+For every image submitted, produce one LTX 2.3 motion prompt that:
+1. Describes the subject and setting briefly (grounding)
+2. Specifies the exact motion - what moves, how, at what cadence
+3. Notes secondary motion (hair, fabric, hands)
+4. Locks the camera unless movement is intentional
+5. Ends with quality tags: cinematic, photorealistic, shallow depth of field
+6. Avoid dreamy slow motion, we aim for natural realistic movements`;
+
+const LTX_NEGATIVE_EXTRA = 'genitalia, sexual acts, graphic content, minors, body distortion, morphing, scene cuts, jump cuts';
+
+function tmux(args) {
+  return new Promise((resolve, reject) => {
+    execFile('tmux', args, (err, stdout) => {
+      if (err) reject(err);
+      else resolve(stdout.trim());
+    });
+  });
+}
+
+async function ensureRCSession() {
+  try {
+    await tmux(['has-session', '-t', 'comfyui-mcp']);
+    return false;
+  } catch {}
+  await tmux(['new-session', '-d', '-s', 'comfyui-mcp', '-c', '/home/ervinne/projects/comfyui-mcp', 'claude', '--model', 'claude-sonnet-4-6']);
+  await new Promise(r => setTimeout(r, 3000));
+  await tmux(['send-keys', '-t', 'comfyui-mcp', '/remote-control', 'Enter']);
+  await new Promise(r => setTimeout(r, 5000));
+  return true;
+}
+
+async function getMotionPrompt(imagePath) {
+  const id = `cv-${Date.now()}`;
+  const taskFile = path.join(os.tmpdir(), `${id}-task.md`);
+  const resultFile = path.join(os.tmpdir(), `${id}-result.txt`);
+
+  fs.writeFileSync(taskFile, [
+    '# Creative Video Direction Task',
+    '',
+    '## Your role',
+    VIDEO_DIRECTION_SYSTEM,
+    '',
+    '## Steps',
+    `1. Read the image at: ${imagePath}`,
+    '2. Generate one LTX 2.3 motion prompt based on what you see.',
+    `3. Write ONLY the prompt text (no labels, no explanation) to: ${resultFile}`,
+  ].join('\n'));
+
+  const justStarted = await ensureRCSession();
+  if (justStarted) await new Promise(r => setTimeout(r, 2000));
+
+  await tmux(['send-keys', '-t', 'comfyui-mcp', `Creative video direction task: read ${taskFile} for full instructions`, 'Enter']);
+
+  const deadline = Date.now() + 120000;
+  while (Date.now() < deadline) {
+    await new Promise(r => setTimeout(r, 2000));
+    try {
+      const text = fs.readFileSync(resultFile, 'utf8').trim();
+      if (text) {
+        try { fs.unlinkSync(resultFile); } catch {}
+        try { fs.unlinkSync(taskFile); } catch {}
+        return text;
+      }
+    } catch {}
+  }
+  try { fs.unlinkSync(taskFile); } catch {}
+  throw new Error('Timed out waiting for motion prompt from RC session');
+}
+
+router.post('/api/comfyui/creative-video', async (req, res) => {
+  const { filePath } = req.body;
+  if (!filePath) return res.status(400).json({ error: 'filePath required' });
+  if (!isAllowedPath(filePath)) return res.status(403).json({ error: 'path not allowed' });
+
+  const config = loadConfig();
+  const url = comfyUrl(config);
+
+  let motionPrompt;
+  try {
+    motionPrompt = await getMotionPrompt(filePath);
+  } catch (err) {
+    return res.status(500).json({ error: `Prompt generation failed: ${err.message}` });
+  }
+
+  let comfyFilename;
+  try {
+    const out = execFileSync('curl', ['-s', '-F', `image=@${filePath}`, `${url}/api/upload/image`],
+      { encoding: 'utf8', timeout: 30000 });
+    const r = JSON.parse(out);
+    comfyFilename = r.subfolder ? `${r.subfolder}/${r.name}` : r.name;
+  } catch (err) {
+    return res.status(500).json({ error: `Upload failed: ${err.message}` });
+  }
+
+  const workflow = JSON.parse(fs.readFileSync(path.join(WORKFLOWS_DIR, 'ltx-i2v.api.json'), 'utf8'));
+  workflow['324'].inputs.image = comfyFilename;
+  workflow['320:319'].inputs.value = motionPrompt;
+  workflow['320:301'].inputs.value = 5;
+  workflow['75'].inputs.filename_prefix = `${new Date().toISOString().slice(0, 10).replace(/-/g, '')}/video/ltx-`;
+  const seed = Math.floor(Math.random() * 2 ** 32);
+  workflow['320:276'].inputs.noise_seed = seed;
+  workflow['320:277'].inputs.noise_seed = seed + 1;
+  const existingNeg = workflow['320:313']?.inputs?.text || '';
+  if (workflow['320:313']) {
+    workflow['320:313'].inputs.text = existingNeg ? `${existingNeg}, ${LTX_NEGATIVE_EXTRA}` : LTX_NEGATIVE_EXTRA;
+  }
+
+  try {
+    const result = await comfyPost(url, '/api/prompt', { prompt: workflow });
+    res.json({ ok: true, promptId: result.prompt_id, motionPrompt });
+  } catch (err) {
+    res.status(500).json({ error: `ComfyUI submit failed: ${err.message}` });
+  }
+});
+
+const WORKFLOW_DEFS = {
+  'zit-txt2img':     { workflow: 'zit',       label: 'ZIT T2I',    prefixHint: '/zit-',       getPrompt: n => n['57:27']?.inputs?.text  || '', getImage: () => null },
+  'qwen-i2i-nsfw':   { workflow: 'qwen-nsfw', label: 'Qwen I2I',   prefixHint: '/qwen-nsfw-', getPrompt: n => n['12']?.inputs?.text     || '', getImage: n => n['11']?.inputs?.image || null },
+  'ltx-i2v':         { workflow: 'ltx-i2v',   label: 'LTX I2V',   prefixHint: '/video/ltx-', getPrompt: n => n['320:319']?.inputs?.value || '', getImage: n => n['324']?.inputs?.image || null },
+  'qwen-image-edit': { workflow: 'qwen',       label: 'Qwen Edit',  prefixHint: '/qwen-',      getPrompt: n => n['62']?.inputs?.value    || '', getImage: n => n['47']?.inputs?.image || null },
+};
+
 function extractJobInfo(nodes) {
   const prefix = nodes['9']?.inputs?.filename_prefix
     || nodes['6']?.inputs?.filename_prefix
@@ -180,36 +328,24 @@ function extractJobInfo(nodes) {
     || nodes['45']?.inputs?.filename_prefix
     || '';
 
-  let workflow = 'unknown';
-  let workflowLabel = 'Unknown';
-  let prompt = '';
-  let image = null;
-
-  const isLtx = prefix.includes('/ltx-i2v-') || nodes['75']?.class_type === 'SaveVideo';
-  const isZit = !isLtx && (prefix.includes('/zit-') || nodes['9']?.class_type === 'SaveImage');
-  const isQwenNsfw = !isLtx && !isZit && (prefix.includes('/qwen-nsfw-') || nodes['6']?.class_type === 'SaveImage');
-  const isQwen = !isLtx && !isZit && !isQwenNsfw && (prefix.includes('/qwen-') || nodes['45']?.class_type === 'SaveImage');
-
-  if (isZit) {
-    workflow = 'zit';
-    workflowLabel = 'ZIT T2I';
-    prompt = nodes['57:27']?.inputs?.text || '';
-  } else if (isQwenNsfw) {
-    workflow = 'qwen-nsfw';
-    workflowLabel = 'Qwen I2I';
-    prompt = nodes['12']?.inputs?.text || '';
-    image = nodes['11']?.inputs?.image || null;
-  } else if (isLtx) {
-    workflow = 'ltx-i2v';
-    workflowLabel = 'LTX I2V';
-    prompt = nodes['320:319']?.inputs?.value || '';
-    image = nodes['324']?.inputs?.image || null;
-  } else if (isQwen) {
-    workflow = 'qwen';
-    workflowLabel = 'Qwen Edit';
-    prompt = nodes['62']?.inputs?.value || '';
-    image = nodes['47']?.inputs?.image || null;
+  // Primary: _meta label stamped by scripts/label-workflows.sh
+  let tag = null;
+  for (const node of Object.values(nodes)) {
+    if (node?._meta?.asset_server_workflow) { tag = node._meta.asset_server_workflow; break; }
   }
+  // Fallback: match filename_prefix
+  if (!tag) {
+    for (const [name, def] of Object.entries(WORKFLOW_DEFS)) {
+      if (prefix.includes(def.prefixHint)) { tag = name; break; }
+    }
+  }
+
+  const def = tag ? WORKFLOW_DEFS[tag] : null;
+
+  let workflow = def?.workflow || 'unknown';
+  let workflowLabel = def?.label || 'Unknown';
+  let prompt = def ? def.getPrompt(nodes) : '';
+  let image = def ? def.getImage(nodes) : null;
 
   if (!prompt) {
     const prompts = extractPrompts(JSON.stringify(nodes));

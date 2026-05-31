@@ -62,14 +62,6 @@ body {
   color: var(--sl-color-neutral-500);
 }
 
-.sidebar-subsection-label {
-  padding: 8px 12px 2px;
-  font-size: 9px;
-  text-transform: uppercase;
-  letter-spacing: 0.07em;
-  color: var(--sl-color-neutral-400);
-}
-
 .sidebar-item {
   display: flex;
   align-items: center;
@@ -255,6 +247,41 @@ body {
 
 #btn-comfy-queue.offline {
   opacity: 0.35;
+}
+
+/* ── Claude sidebar dot ──────────────────────────────────────────────────────── */
+
+.claude-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  flex-shrink: 0;
+  background: var(--sl-color-neutral-400);
+  transition: background 0.3s;
+}
+
+#btn-claude-page.rc-on .claude-dot {
+  background: var(--sl-color-warning-500);
+}
+
+/* ── Claude page ─────────────────────────────────────────────────────────────── */
+
+.claude-controls {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+
+.claude-session-link {
+  font-size: 12px;
+  color: var(--sl-color-primary-500);
+  text-decoration: none;
+  padding: 2px 0;
+}
+
+.claude-session-link:hover {
+  text-decoration: underline;
 }
 
 .comfy-jobs-count {

@@ -12,29 +12,49 @@ function tmux(args) {
   });
 }
 
-router.get('/api/claude/status', async (req, res) => {
+function delay(ms) {
+  return new Promise(r => setTimeout(r, ms));
+}
+
+async function sessionExists() {
+  return tmux(['has-session', '-t', 'comfyui-mcp']).then(() => true).catch(() => false);
+}
+
+let sessionUrl = null;
+
+async function tryGetSessionUrl() {
+  if (sessionUrl) return sessionUrl;
   try {
-    await tmux(['has-session', '-t', 'comfyui-mcp']);
-    res.json({ running: true });
-  } catch {
-    res.json({ running: false });
-  }
+    const pane = await tmux(['capture-pane', '-t', 'comfyui-mcp', '-p', '-S', '-50']);
+    const m = pane.match(/https:\/\/claude\.ai\/code\/session_\w+/);
+    if (m) sessionUrl = m[0];
+  } catch {}
+  return sessionUrl;
+}
+
+async function ensureRCRunning() {
+  if (await sessionExists()) return { ok: true, already: true };
+  await tmux(['new-session', '-d', '-s', 'comfyui-mcp', '-c', '/home/ervinne/projects/comfyui-mcp', 'claude', '--model', 'claude-sonnet-4-6']);
+  setTimeout(async () => {
+    try {
+      await tmux(['send-keys', '-t', 'comfyui-mcp', '/remote-control', 'Enter']);
+      await delay(5000);
+      await tryGetSessionUrl();
+    } catch {}
+  }, 3000);
+  return { ok: true };
+}
+
+router.get('/api/claude/status', async (req, res) => {
+  const running = await sessionExists();
+  if (!running) sessionUrl = null;
+  const url = running ? await tryGetSessionUrl() : null;
+  res.json({ running, sessionUrl: url });
 });
 
 router.post('/api/claude/start', async (req, res) => {
   try {
-    await tmux(['has-session', '-t', 'comfyui-mcp']);
-    return res.json({ ok: true, already: true });
-  } catch {
-    // session doesn't exist — create it
-  }
-  try {
-    await tmux(['new-session', '-d', '-s', 'comfyui-mcp', '-c', '/home/ervinne/projects/comfyui-mcp', 'claude', '--model', 'claude-sonnet-4-6']);
-    res.json({ ok: true });
-    // wait for claude to initialize, then activate remote control
-    setTimeout(() => {
-      tmux(['send-keys', '-t', 'comfyui-mcp', '/remote-control', 'Enter']).catch(() => {});
-    }, 3000);
+    res.json(await ensureRCRunning());
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
@@ -43,6 +63,7 @@ router.post('/api/claude/start', async (req, res) => {
 router.post('/api/claude/stop', async (req, res) => {
   try {
     await tmux(['kill-session', '-t', 'comfyui-mcp']);
+    sessionUrl = null;
     res.json({ ok: true });
   } catch (err) {
     res.status(500).json({ error: err.message });

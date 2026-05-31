@@ -52,6 +52,8 @@ export function showPreview(item) {
     const showToolbar = isImg(item.name) || isVideo(item.name);
     $('preview-toolbar').style.display = showToolbar ? 'flex' : 'none';
     $('btn-generate-open').style.display = isImg(item.name) ? '' : 'none';
+    if (isImg(item.name)) updateCreativeVideoBtn(item.path);
+    $('btn-creative-video').style.display = isImg(item.name) ? '' : 'none';
     $('btn-prompt-open').style.display = 'none';
     if (item.name.toLowerCase().endsWith('.png')) {
       api.getPrompt(item.path).then(d => {
@@ -69,9 +71,25 @@ export function clearPreview() {
   $('preview-toolbar').style.display = 'none';
   $('btn-prompt-open').style.display = 'none';
   $('btn-generate-open').style.display = 'none';
+  $('btn-creative-video').style.display = 'none';
   const video = $('preview-video');
   video.pause();
   video.src = '';
+}
+
+function updateCreativeVideoBtn(filePath) {
+  const queued = JSON.parse(localStorage.getItem('videoQueued') || '[]');
+  const btn = $('btn-creative-video');
+  const icon = btn.querySelector('sl-icon');
+  if (queued.includes(filePath)) {
+    icon.name = 'camera-video-fill';
+    btn.style.color = 'var(--sl-color-primary-500)';
+    btn.title = 'Re-queue creative video';
+  } else {
+    icon.name = 'camera-video';
+    btn.style.color = '';
+    btn.title = 'Queue for creative video';
+  }
 }
 
 // ── Copy to clipboard ─────────────────────────────────────────────────────────
@@ -106,6 +124,27 @@ export async function copySelectedToClipboard() {
 
 $('btn-copy-file').addEventListener('click', copySelectedToClipboard);
 $('btn-generate-open').addEventListener('click', () => openGenerateDialog(state.selectedFile));
+
+$('btn-creative-video').addEventListener('click', async () => {
+  const item = state.selectedFile;
+  if (!item) return;
+  const btn = $('btn-creative-video');
+  btn.disabled = true;
+  btn.title = 'Generating prompt…';
+  try {
+    await api.creativeVideo(item.path);
+    const queued = JSON.parse(localStorage.getItem('videoQueued') || '[]');
+    if (!queued.includes(item.path)) queued.push(item.path);
+    localStorage.setItem('videoQueued', JSON.stringify(queued));
+    updateCreativeVideoBtn(item.path);
+    toast('Creative video queued — check ComfyUI queue');
+  } catch (err) {
+    toast(`Creative video failed: ${err.message}`, 'danger');
+    updateCreativeVideoBtn(item.path);
+  } finally {
+    btn.disabled = false;
+  }
+});
 
 // Click preview image → open full-size in new tab
 $('preview-img').addEventListener('click', () => {

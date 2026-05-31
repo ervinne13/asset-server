@@ -3,13 +3,14 @@ import { $, toast } from './helpers.js';
 import { currentQueue } from './comfyui-status.js';
 import { navigate } from './router.js';
 import { state } from './state.js';
+import { closeMobileSidebar } from './mobile.js';
 
 let selectedJob = null;
 let queueOpen = false;
 let justOpened = false;
 
 function isMobile() {
-  return window.innerWidth < 768;
+  return window.matchMedia('(max-width: 768px)').matches;
 }
 
 // ── Public API ────────────────────────────────────────────────────────────────
@@ -82,6 +83,7 @@ function renderDesktop(queue) {
 // ── Mobile: full-screen overlay ───────────────────────────────────────────────
 
 function openMobile() {
+  closeMobileSidebar();
   $('comfy-queue-page').style.display = 'flex';
   $('comfy-queue-mobile-detail').style.display = 'none';
   justOpened = true;

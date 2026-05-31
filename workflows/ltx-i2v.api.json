@@ -1,7 +1,7 @@
 {
   "75": {
     "inputs": {
-      "filename_prefix": "video/20260529/LTX_2.3_i2v",
+      "filename_prefix": "20260101/video/ltx-",
       "format": "auto",
       "codec": "auto",
       "video-preview": "",
@@ -12,7 +12,8 @@
     },
     "class_type": "SaveVideo",
     "_meta": {
-      "title": "Save Video"
+      "title": "Save Video",
+      "asset_server_workflow": "ltx-i2v"
     }
   },
   "324": {

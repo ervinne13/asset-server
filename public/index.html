@@ -38,6 +38,7 @@
   <link rel="modulepreload" href="/modules/qwen-i2i.js" />
   <link rel="modulepreload" href="/modules/ltx-i2v.js" />
   <link rel="modulepreload" href="/modules/comfyui-queue.js" />
+  <link rel="modulepreload" href="/modules/claude-page.js" />
 </head>
 <body>
   <div class="shell">
@@ -79,10 +80,13 @@
         LTX I2V
       </a>
 
+      <a class="sidebar-item" id="btn-claude-page" href="/claude">
+        <span class="claude-dot"></span>
+        Claude
+      </a>
+
       <div class="sidebar-section-label">Bookmarks</div>
       <div id="bookmark-list"></div>
-
-      <sl-button id="btn-claude-status" size="small" variant="neutral" data-running="0" style="margin:8px 12px 12px">Claude: OFF</sl-button>
     </aside>
 
     <!-- ── Middle: Explorer ── -->
@@ -183,6 +187,9 @@
               </button>
               <button id="btn-generate-open" class="toolbar-btn" title="Edit with Qwen AI" style="display:none">
                 <sl-icon name="pencil-fill"></sl-icon>
+              </button>
+              <button id="btn-creative-video" class="toolbar-btn" title="Queue for creative video" style="display:none">
+                <sl-icon name="camera-video"></sl-icon>
               </button>
             </div>
             <div class="preview-toolbar-right">
@@ -676,6 +683,31 @@
         <span>Job Details</span>
       </div>
       <div class="cqd-inner"></div>
+    </div>
+  </div>
+
+  <!-- ── Claude Page (full-screen overlay) ── -->
+  <div id="claude-page" class="zit-page" style="display:none">
+    <div class="gen-header">
+      <button id="claude-page-back" class="gen-back-btn" title="Back">
+        <sl-icon name="arrow-left"></sl-icon>
+      </button>
+      <span class="gen-title">Claude</span>
+      <span id="claude-page-status" class="gen-status"></span>
+    </div>
+    <div class="zit-content">
+      <div class="zit-inner">
+
+        <div class="claude-controls">
+          <sl-button id="claude-page-rc" size="medium" variant="neutral" data-running="0" style="width:100%">
+            Remote Control: OFF
+          </sl-button>
+          <a id="claude-session-link" class="claude-session-link" href="#" target="_blank" rel="noopener" style="display:none">
+            Open chat session ↗
+          </a>
+        </div>
+
+      </div>
     </div>
   </div>
 

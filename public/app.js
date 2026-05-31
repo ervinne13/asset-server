@@ -21,6 +21,8 @@ import { openZitPage, closeZitPage } from './modules/zit.js';
 import { openQwenPage, closeQwenPage } from './modules/qwen-i2i.js';
 import { openLtxPage, closeLtxPage } from './modules/ltx-i2v.js';
 import { openQueuePage, closeQueuePage } from './modules/comfyui-queue.js';
+import { openClaudePage, closeClaudePage } from './modules/claude-page.js';
+import { closeMobileSidebar } from './modules/mobile.js';
 
 // ── View toggle ───────────────────────────────────────────────────────────────
 
@@ -106,14 +108,17 @@ setInterval(() => {
 }, 5000);
 
 window.addEventListener('popstate', e => {
+  closeMobileSidebar();
   closeZitPage();
   closeQwenPage();
   closeLtxPage();
   closeQueuePage();
+  closeClaudePage();
   if (e.state?.page === 'zit') openZitPage();
   else if (e.state?.page === 'qwen') openQwenPage();
   else if (e.state?.page === 'ltx') openLtxPage();
   else if (e.state?.page === 'comfy-queue') openQueuePage();
+  else if (e.state?.page === 'claude') openClaudePage();
   else if (e.state?.path) navigate(e.state.path, { historyMode: 'none' });
   else {
     const p = urlToPath(location.pathname, location.search);
@@ -156,5 +161,8 @@ window.addEventListener('popstate', e => {
   } else if (origPathname === '/ltx-i2v') {
     history.pushState({ page: 'ltx' }, '', '/ltx-i2v');
     openLtxPage();
+  } else if (origPathname === '/claude') {
+    history.pushState({ page: 'claude' }, '', '/claude');
+    openClaudePage();
   }
 })();
