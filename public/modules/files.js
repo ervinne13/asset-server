@@ -75,14 +75,14 @@ export function patchFiles(newItems) {
 }
 
 export function makeCard(item) {
-  const card = document.createElement(item.isDir ? 'a' : 'div');
+  const card = document.createElement('a');
   card.className = 'file-card';
+  card.href = pathToUrl(item.path);
 
   const thumb = document.createElement('div');
   thumb.className = 'card-thumb';
 
   if (item.isDir) {
-    card.href = pathToUrl(item.path);
     thumb.innerHTML = `<sl-icon name="folder2-open"></sl-icon>`;
     card.onclick = e => {
       e.preventDefault();
@@ -137,11 +137,15 @@ export function makeCard(item) {
     card.appendChild(dl);
 
     card.onclick = e => {
+      e.preventDefault();
       if (isMobile() && (isImg(item.name) || isVideo(item.name))) {
         selectFile(item);
         openLightbox(item);
       } else {
         handleItemClick(e, item);
+        if (!e.ctrlKey && !e.metaKey && !e.shiftKey) {
+          history.replaceState(null, '', pathToUrl(item.path));
+        }
       }
     };
   }
@@ -157,8 +161,9 @@ export function makeCard(item) {
 }
 
 export function makeRow(item) {
-  const row = document.createElement(item.isDir ? 'a' : 'div');
+  const row = document.createElement('a');
   row.className = 'file-row';
+  row.href = pathToUrl(item.path);
 
   const iconName = item.isDir ? 'folder2'
     : isImg(item.name) ? 'image'
@@ -181,15 +186,18 @@ export function makeRow(item) {
     dl.addEventListener('click', e => e.stopPropagation());
     row.appendChild(dl);
     row.onclick = e => {
+      e.preventDefault();
       if (isMobile() && (isImg(item.name) || isVideo(item.name))) {
         selectFile(item);
         openLightbox(item);
       } else {
         handleItemClick(e, item);
+        if (!e.ctrlKey && !e.metaKey && !e.shiftKey) {
+          history.replaceState(null, '', pathToUrl(item.path));
+        }
       }
     };
   } else {
-    row.href = pathToUrl(item.path);
     row.onclick = e => {
       e.preventDefault();
       if (e.ctrlKey || e.metaKey) handleItemClick(e, item);
@@ -199,3 +207,10 @@ export function makeRow(item) {
 
   return row;
 }
+
+// Revert URL to the current folder when clicking empty grid space
+$('file-grid').addEventListener('click', e => {
+  if (!e.target.closest('.file-card, .file-row') && state.currentPath) {
+    history.replaceState(null, '', pathToUrl(state.currentPath));
+  }
+});

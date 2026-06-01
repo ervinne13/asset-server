@@ -3,7 +3,7 @@ import { api } from './api.js';
 import { $, toast, isImg, isVideo } from './helpers.js';
 import { renderFiles, patchFiles } from './files.js'; // circular dep — fine at runtime
 import { clearPreview } from './preview.js';
-import { clearSelection, refreshSelectionVisuals, updateRightPanel } from './selection.js';
+import { clearSelection, selectFile, refreshSelectionVisuals, updateRightPanel } from './selection.js';
 import { renderBookmarks } from './bookmarks.js';   // circular dep — fine at runtime
 import { closeMobileSidebar } from './mobile.js';
 
@@ -40,7 +40,7 @@ export function urlToPath(pathname, search = '') {
   return null;
 }
 
-export async function navigate(dirPath, { historyMode = 'push' } = {}) {
+export async function navigate(dirPath, { historyMode = 'push', _selectFile = null } = {}) {
   if (state.currentPath) state.scrollPositions[state.currentPath] = $('file-grid').scrollTop;
   state.currentPath = dirPath;
   closeMobileSidebar();
@@ -53,6 +53,14 @@ export async function navigate(dirPath, { historyMode = 'push' } = {}) {
   try {
     items = await api.ls(dirPath);
   } catch (err) {
+    // If the path looks like a file, navigate to its parent and select it
+    const lastSeg = dirPath.slice(dirPath.lastIndexOf('/') + 1);
+    if (lastSeg.includes('.')) {
+      const parentDir = dirPath.slice(0, dirPath.lastIndexOf('/'));
+      if (parentDir && parentDir !== dirPath) {
+        return navigate(parentDir, { historyMode, _selectFile: lastSeg });
+      }
+    }
     toast(`Cannot open folder: ${err.message}`, 'danger');
     return;
   }
@@ -73,7 +81,16 @@ export async function navigate(dirPath, { historyMode = 'push' } = {}) {
   renderBreadcrumb(dirPath);
   renderFiles(items);
   $('file-grid').scrollTop = state.scrollPositions[dirPath] ?? 0;
-  updateRightPanel();
+
+  if (_selectFile) {
+    const item = items.find(i => i.name === _selectFile);
+    if (item) {
+      selectFile(item);
+      history.replaceState(null, '', pathToUrl(item.path));
+    }
+  } else {
+    updateRightPanel();
+  }
 }
 
 export async function silentRefresh() {
