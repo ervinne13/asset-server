@@ -16,8 +16,9 @@ stamp() {
 }
 
 echo "Labeling workflows..."
-stamp "zit-txt2img.api.json"     "9"  "zit-txt2img"
-stamp "qwen-i2i-nsfw.api.json"   "6"  "qwen-i2i-nsfw"
-stamp "qwen-image-edit.api.json" "45" "qwen-image-edit"
-stamp "ltx-i2v.api.json"         "75" "ltx-i2v"
+stamp "zit-txt2img.api.json"          "9"  "zit-txt2img"
+stamp "qwen-i2i-nsfw.api.json"        "6"  "qwen-i2i-nsfw"
+stamp "qwen-image-edit.api.json"      "45" "qwen-image-edit"
+stamp "ltx-i2v.api.json"              "75" "ltx-i2v"
+stamp "qwen-pose-options.api.json"    "72" "qwen-pose"
 echo "Done."
