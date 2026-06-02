@@ -21,16 +21,68 @@ function datePrefix(tag) {
   return `${d}/${tag}-${d}${t}`;
 }
 
+const VIDEO_EXTS = new Set(['.mp4', '.webm', '.gif', '.webp']);
+
+// Save a lightweight sidecar next to where ComfyUI will write the video.
+// filenamePrefix is the value set on the SaveVideo node (e.g. '20260601/video/ltx-').
+// The video will land as <prefix>_00001.mp4; we strip the counter at read time.
+function saveLtxSidecar(stagingRoot, filenamePrefix, text, seed) {
+  if (!stagingRoot || !filenamePrefix) return;
+  try {
+    const sidecarPath = path.join(stagingRoot, `${filenamePrefix}.metadata.json`);
+    fs.mkdirSync(path.dirname(sidecarPath), { recursive: true });
+    fs.writeFileSync(sidecarPath, JSON.stringify({ text, seed }));
+  } catch { /* non-critical */ }
+}
+
 router.get('/api/prompt', (req, res) => {
   const filePath = req.query.path;
   if (!filePath) return res.status(400).json({ error: 'path required' });
   if (!isAllowedPath(filePath)) return res.status(403).json({ error: 'path not allowed' });
-  if (path.extname(filePath).toLowerCase() !== '.png') return res.json({ prompts: [] });
-  const chunks = readPngTextChunks(filePath);
-  let prompts = chunks.workflow ? extractPrompts(chunks.workflow) : [];
-  if (!prompts.length && chunks.prompt) prompts = extractPrompts(chunks.prompt);
-  const seed = extractSeed(chunks.workflow || '') ?? extractSeed(chunks.prompt || '');
-  res.json({ prompts, seed });
+
+  const ext = path.extname(filePath).toLowerCase();
+
+  if (ext === '.png') {
+    const chunks = readPngTextChunks(filePath);
+    let prompts = chunks.workflow ? extractPrompts(chunks.workflow) : [];
+    if (!prompts.length && chunks.prompt) prompts = extractPrompts(chunks.prompt);
+    const seed = extractSeed(chunks.workflow || '') ?? extractSeed(chunks.prompt || '');
+    return res.json({ prompts, seed });
+  }
+
+  if (VIDEO_EXTS.has(ext)) {
+    const base = filePath.slice(0, -ext.length);
+    const dir  = path.dirname(base);
+    // Strip ComfyUI's _00001 counter (and any trailing suffix like -audio)
+    const stripped = path.basename(base).replace(/_\d{5}(-\w+)*$/, '');
+
+    const candidates = [
+      `${base}.json`,
+      `${base}_metadata.json`,
+      path.join(dir, `${stripped}.metadata.json`),
+    ];
+
+    for (const sidecar of candidates) {
+      if (!fs.existsSync(sidecar)) continue;
+      try {
+        const data = JSON.parse(fs.readFileSync(sidecar, 'utf8'));
+        // Our format: { text, seed }
+        if (typeof data.text === 'string') {
+          const prompts = data.text.trim() ? [{ title: 'Prompt', text: data.text.trim() }] : [];
+          return res.json({ prompts, seed: data.seed ?? null });
+        }
+        // VHS format: { workflow, prompt } — both may be JSON objects or strings
+        const wfStr = typeof data.workflow === 'object' ? JSON.stringify(data.workflow) : (data.workflow || '');
+        const prStr = typeof data.prompt  === 'object' ? JSON.stringify(data.prompt)  : (data.prompt  || '');
+        let prompts = extractPrompts(wfStr);
+        if (!prompts.length) prompts = extractPrompts(prStr);
+        const seed = extractSeed(wfStr) ?? extractSeed(prStr);
+        return res.json({ prompts, seed });
+      } catch { continue; }
+    }
+  }
+
+  res.json({ prompts: [], seed: null });
 });
 
 router.get('/api/comfyui/status', async (req, res) => {
@@ -155,16 +207,20 @@ router.post('/api/comfyui/ltx-i2v', async (req, res) => {
   if (!prompt?.trim()) return res.status(400).json({ error: 'prompt required' });
   if (!image) return res.status(400).json({ error: 'image required' });
 
-  const url = comfyUrl(loadConfig());
+  const config = loadConfig();
+  const url = comfyUrl(config);
   const workflow = JSON.parse(fs.readFileSync(path.join(WORKFLOWS_DIR, 'ltx-i2v.api.json'), 'utf8'));
 
+  const filenamePrefix = `${new Date().toISOString().slice(0,10).replace(/-/g,'')}/video/ltx-`;
   workflow['324'].inputs.image = image;
   workflow['320:319'].inputs.value = prompt.trim();
   workflow['320:301'].inputs.value = [3, 5, 10, 15].includes(Number(duration)) ? Number(duration) : 5;
-  workflow['75'].inputs.filename_prefix = `${new Date().toISOString().slice(0,10).replace(/-/g,'')}/video/ltx-`;
+  workflow['75'].inputs.filename_prefix = filenamePrefix;
   const seed = Math.floor(Math.random() * 2 ** 32);
   workflow['320:276'].inputs.noise_seed = seed;
   workflow['320:277'].inputs.noise_seed = seed + 1;
+
+  saveLtxSidecar(config.roots?.staging, filenamePrefix, prompt.trim(), seed);
 
   try {
     const result = await comfyPost(url, '/api/prompt', { prompt: workflow });
@@ -294,11 +350,12 @@ router.post('/api/comfyui/creative-video', async (req, res) => {
     return res.status(500).json({ error: `Upload failed: ${err.message}` });
   }
 
+  const filenamePrefix = `${new Date().toISOString().slice(0, 10).replace(/-/g, '')}/video/ltx-`;
   const workflow = JSON.parse(fs.readFileSync(path.join(WORKFLOWS_DIR, 'ltx-i2v.api.json'), 'utf8'));
   workflow['324'].inputs.image = comfyFilename;
   workflow['320:319'].inputs.value = motionPrompt;
   workflow['320:301'].inputs.value = 5;
-  workflow['75'].inputs.filename_prefix = `${new Date().toISOString().slice(0, 10).replace(/-/g, '')}/video/ltx-`;
+  workflow['75'].inputs.filename_prefix = filenamePrefix;
   const seed = Math.floor(Math.random() * 2 ** 32);
   workflow['320:276'].inputs.noise_seed = seed;
   workflow['320:277'].inputs.noise_seed = seed + 1;
@@ -306,6 +363,8 @@ router.post('/api/comfyui/creative-video', async (req, res) => {
   if (workflow['320:313']) {
     workflow['320:313'].inputs.text = existingNeg ? `${existingNeg}, ${LTX_NEGATIVE_EXTRA}` : LTX_NEGATIVE_EXTRA;
   }
+
+  saveLtxSidecar(config.roots?.staging, filenamePrefix, motionPrompt, seed);
 
   try {
     const result = await comfyPost(url, '/api/prompt', { prompt: workflow });
@@ -316,15 +375,17 @@ router.post('/api/comfyui/creative-video', async (req, res) => {
 });
 
 const WORKFLOW_DEFS = {
-  'zit-txt2img':     { workflow: 'zit',       label: 'ZIT T2I',    prefixHint: '/zit-',       getPrompt: n => n['57:27']?.inputs?.text  || '', getImage: () => null },
-  'qwen-i2i-nsfw':   { workflow: 'qwen-nsfw', label: 'Qwen I2I',   prefixHint: '/qwen-nsfw-', getPrompt: n => n['12']?.inputs?.text     || '', getImage: n => n['11']?.inputs?.image || null },
-  'ltx-i2v':         { workflow: 'ltx-i2v',   label: 'LTX I2V',   prefixHint: '/video/ltx-', getPrompt: n => n['320:319']?.inputs?.value || '', getImage: n => n['324']?.inputs?.image || null },
-  'qwen-image-edit': { workflow: 'qwen',       label: 'Qwen Edit',  prefixHint: '/qwen-',      getPrompt: n => n['62']?.inputs?.value    || '', getImage: n => n['47']?.inputs?.image || null },
+  'zit-txt2img':     { workflow: 'zit',        label: 'ZIT T2I',    prefixHint: '/zit-',       getPrompt: n => n['57:27']?.inputs?.text   || '', getImage: () => null },
+  'qwen-i2i-nsfw':   { workflow: 'qwen-nsfw',  label: 'Qwen I2I',   prefixHint: '/qwen-nsfw-', getPrompt: n => n['12']?.inputs?.text      || '', getImage: n => n['11']?.inputs?.image || null },
+  'ltx-i2v':         { workflow: 'ltx-i2v',    label: 'LTX I2V',   prefixHint: '/video/ltx-', getPrompt: n => n['320:319']?.inputs?.value || '', getImage: n => n['324']?.inputs?.image || null },
+  'qwen-image-edit': { workflow: 'qwen',        label: 'Qwen Edit',  prefixHint: '/qwen-',      getPrompt: n => n['62']?.inputs?.value     || '', getImage: n => n['47']?.inputs?.image || null },
+  'qwen-pose':       { workflow: 'qwen-pose',   label: 'Qwen Pose',  prefixHint: '/qwen-pose',  getPrompt: () => '',                              getImage: n => n['73']?.inputs?.image || null },
 };
 
 function extractJobInfo(nodes) {
   const prefix = nodes['9']?.inputs?.filename_prefix
     || nodes['6']?.inputs?.filename_prefix
+    || nodes['72']?.inputs?.filename_prefix
     || nodes['75']?.inputs?.filename_prefix
     || nodes['45']?.inputs?.filename_prefix
     || '';
@@ -422,6 +483,29 @@ router.post('/api/comfyui/qwen-i2i-nsfw', async (req, res) => {
     if (savedPromptId && result.prompt_id) {
       pollAndSaveImage(result.prompt_id, savedPromptId).catch(() => {});
     }
+    res.json({ ok: true, promptId: result.prompt_id });
+  } catch (err) {
+    res.status(500).json({ error: `ComfyUI submit failed: ${err.message}` });
+  }
+});
+
+router.post('/api/comfyui/qwen-pose', async (req, res) => {
+  const { image, poseIndex, negativePrompt, seed } = req.body;
+  if (!image) return res.status(400).json({ error: 'image required' });
+  const idx = parseInt(poseIndex);
+  if (isNaN(idx) || idx < 0 || idx > 3) return res.status(400).json({ error: 'poseIndex must be 0–3' });
+
+  const url = comfyUrl(loadConfig());
+  const workflow = JSON.parse(fs.readFileSync(path.join(WORKFLOWS_DIR, 'qwen-pose-options.api.json'), 'utf8'));
+
+  workflow['73'].inputs.image = image;
+  workflow['78'].inputs.index = idx;
+  workflow['71'].inputs.seed = (seed != null && !isNaN(seed)) ? Number(seed) : Math.floor(Math.random() * 2 ** 32);
+  if (negativePrompt != null) workflow['75'].inputs.text = negativePrompt;
+  workflow['72'].inputs.filename_prefix = datePrefix('qwen-pose');
+
+  try {
+    const result = await comfyPost(url, '/api/prompt', { prompt: workflow });
     res.json({ ok: true, promptId: result.prompt_id });
   } catch (err) {
     res.status(500).json({ error: `ComfyUI submit failed: ${err.message}` });

@@ -6,6 +6,18 @@ import { navigate, pathToUrl } from './router.js'; // circular dep — fine at r
 import { openLightbox } from './lightbox.js'; // circular dep — fine at runtime
 import { isMobile } from './mobile.js';
 
+export function sortItems(items) {
+  const s = state.sort;
+  return [...items].sort((a, b) => {
+    if (a.isDir !== b.isDir) return a.isDir ? -1 : 1;
+    if (s === 'newest') return new Date(b.mtime) - new Date(a.mtime);
+    if (s === 'oldest') return new Date(a.mtime) - new Date(b.mtime);
+    if (s === 'alpha-asc') return a.name.localeCompare(b.name);
+    if (s === 'alpha-desc') return b.name.localeCompare(a.name);
+    return 0;
+  });
+}
+
 export function renderFiles(items) {
   const grid = $('file-grid');
   grid.innerHTML = '';
@@ -96,7 +108,8 @@ export function makeCard(item) {
       img.decoding = 'async';
       img.fetchPriority = 'low';
       img.alt = item.name;
-      img.src = api.fileUrl(item.path, item.mtime);
+      img.src = api.thumbUrl(item.path, item.mtime);
+      img.onerror = () => { img.onerror = null; img.src = api.fileUrl(item.path, item.mtime); };
       thumb.appendChild(img);
     } else if (isVideo(item.name)) {
       const videoThumb = document.createElement('video');

@@ -1,7 +1,7 @@
 import { state } from './state.js';
 import { api } from './api.js';
 import { $, toast, isImg, isVideo } from './helpers.js';
-import { renderFiles, patchFiles } from './files.js'; // circular dep — fine at runtime
+import { renderFiles, patchFiles, sortItems } from './files.js'; // circular dep — fine at runtime
 import { clearPreview } from './preview.js';
 import { clearSelection, selectFile, refreshSelectionVisuals, updateRightPanel } from './selection.js';
 import { renderBookmarks } from './bookmarks.js';   // circular dep — fine at runtime
@@ -65,7 +65,7 @@ export async function navigate(dirPath, { historyMode = 'push', _selectFile = nu
     return;
   }
 
-  state.currentItems = items;
+  state.currentItems = sortItems(items);
 
   if (state.folderViews[dirPath] !== undefined) {
     state.view = state.folderViews[dirPath];
@@ -79,7 +79,7 @@ export async function navigate(dirPath, { historyMode = 'push', _selectFile = nu
   else if (historyMode === 'replace') history.replaceState({ path: dirPath }, '', url);
 
   renderBreadcrumb(dirPath);
-  renderFiles(items);
+  renderFiles(state.currentItems);
   $('file-grid').scrollTop = state.scrollPositions[dirPath] ?? 0;
 
   if (_selectFile) {
@@ -100,8 +100,8 @@ export async function silentRefresh() {
   let items;
   try { items = await api.ls(state.currentPath); } catch { return; }
 
-  state.currentItems = items;
-  patchFiles(items);
+  state.currentItems = sortItems(items);
+  patchFiles(state.currentItems);
 
   // Drop selected paths that disappeared
   const presentPaths = new Set(items.map(i => i.path));

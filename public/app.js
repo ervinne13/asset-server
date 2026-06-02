@@ -3,7 +3,7 @@ import { api } from './modules/api.js';
 import { $, toast } from './modules/helpers.js';
 import { navigate, urlToPath, silentRefresh } from './modules/router.js';
 import { loadBookmarks } from './modules/bookmarks.js';
-import { renderFiles } from './modules/files.js';
+import { renderFiles, sortItems } from './modules/files.js';
 
 // Side-effect imports — each module wires its own event handlers
 import './modules/mobile.js';
@@ -19,6 +19,7 @@ import './modules/comfyui-status.js';
 import './modules/claude-status.js';
 import { openZitPage, closeZitPage } from './modules/zit.js';
 import { openQwenPage, closeQwenPage } from './modules/qwen-i2i.js';
+import { openQwenPosePage, closeQwenPosePage } from './modules/qwen-pose.js';
 import { openLtxPage, closeLtxPage } from './modules/ltx-i2v.js';
 import { openQueuePage, closeQueuePage } from './modules/comfyui-queue.js';
 import { openClaudePage, closeClaudePage } from './modules/claude-page.js';
@@ -37,6 +38,36 @@ function setView(v) {
 
 $('btn-view-grid').addEventListener('click', () => setView('grid'));
 $('btn-view-list').addEventListener('click', () => setView('list'));
+
+// ── Sort toggle ───────────────────────────────────────────────────────────────
+
+const SORT_ICONS = {
+  newest: 'sort-numeric-down-alt',
+  oldest: 'sort-numeric-up',
+  'alpha-asc': 'sort-alpha-down',
+  'alpha-desc': 'sort-alpha-up-alt',
+};
+
+function updateSortButton() {
+  $('btn-sort').name = SORT_ICONS[state.sort];
+  $('sort-dropdown').querySelectorAll('sl-menu-item').forEach(item => {
+    if (item.value === state.sort) item.setAttribute('checked', '');
+    else item.removeAttribute('checked');
+  });
+}
+
+$('sort-dropdown').addEventListener('sl-select', e => {
+  const sort = e.detail.item.value;
+  state.sort = sort;
+  localStorage.setItem('sort', sort);
+  updateSortButton();
+  if (state.currentItems.length) {
+    state.currentItems = sortItems(state.currentItems);
+    renderFiles(state.currentItems);
+  }
+});
+
+updateSortButton();
 
 // ── Quick nav ─────────────────────────────────────────────────────────────────
 
@@ -111,11 +142,13 @@ window.addEventListener('popstate', e => {
   closeMobileSidebar();
   closeZitPage();
   closeQwenPage();
+  closeQwenPosePage();
   closeLtxPage();
   closeQueuePage();
   closeClaudePage();
   if (e.state?.page === 'zit') openZitPage();
   else if (e.state?.page === 'qwen') openQwenPage();
+  else if (e.state?.page === 'qwen-pose') openQwenPosePage();
   else if (e.state?.page === 'ltx') openLtxPage();
   else if (e.state?.page === 'comfy-queue') openQueuePage();
   else if (e.state?.page === 'claude') openClaudePage();
@@ -158,6 +191,9 @@ window.addEventListener('popstate', e => {
   } else if (origPathname === '/qwen') {
     history.pushState({ page: 'qwen' }, '', '/qwen');
     openQwenPage();
+  } else if (origPathname === '/qwen-pose') {
+    history.pushState({ page: 'qwen-pose' }, '', '/qwen-pose');
+    openQwenPosePage();
   } else if (origPathname === '/ltx-i2v') {
     history.pushState({ page: 'ltx' }, '', '/ltx-i2v');
     openLtxPage();

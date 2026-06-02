@@ -34,6 +34,7 @@ app.use(require('./routes/index-search'));
 app.use(require('./routes/comfyui'));
 app.use(require('./routes/saved-prompts').router);
 app.use(require('./routes/claude'));
+app.use(require('./routes/thumb'));
 
 // ── SPA fallback ──────────────────────────────────────────────────────────────
 

@@ -276,6 +276,7 @@ function updateWorkflowBadges(queue) {
   }
   setBadge('zit-queue-badge', counts['zit'] || 0);
   setBadge('qi-queue-badge', counts['qwen-nsfw'] || 0);
+  setBadge('qp-queue-badge', counts['qwen-pose'] || 0);
   setBadge('ltx-queue-badge', counts['ltx-i2v'] || 0);
 }
 

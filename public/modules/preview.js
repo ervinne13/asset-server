@@ -35,6 +35,10 @@ export function showPreview(item) {
     $('btn-move').style.display     = '';
 
     if (isImg(item.name)) {
+      const wrap = $('preview-media-wrap');
+      wrap.classList.add('is-loading');
+      img.onload  = () => wrap.classList.remove('is-loading');
+      img.onerror = () => wrap.classList.remove('is-loading');
       img.src = api.fileUrl(item.path, item.mtime);
       img.style.display = '';
     } else if (isVideo(item.name)) {

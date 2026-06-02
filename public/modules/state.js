@@ -5,6 +5,7 @@ export const state = {
   lastSelectedIdx: -1,
   currentItems: [],
   view: 'grid',
+  sort: localStorage.getItem('sort') || 'newest',
   folderViews: {},
   scrollPositions: {},
   bookmarks: [],
