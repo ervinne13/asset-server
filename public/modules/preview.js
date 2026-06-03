@@ -50,6 +50,7 @@ export function showPreview(item) {
     } else if (isVideo(item.name)) {
       if (!isSameItem) {
         video.src = api.fileUrl(item.path, item.mtime);
+        video.play().catch(() => {});
       }
       video.style.display = '';
     }
