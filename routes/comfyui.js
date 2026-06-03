@@ -379,7 +379,8 @@ const WORKFLOW_DEFS = {
   'qwen-i2i-nsfw':   { workflow: 'qwen-nsfw',  label: 'Qwen I2I',   prefixHint: '/qwen-nsfw-', getPrompt: n => n['12']?.inputs?.text      || '', getImage: n => n['11']?.inputs?.image || null },
   'ltx-i2v':         { workflow: 'ltx-i2v',    label: 'LTX I2V',   prefixHint: '/video/ltx-', getPrompt: n => n['320:319']?.inputs?.value || '', getImage: n => n['324']?.inputs?.image || null },
   'qwen-image-edit': { workflow: 'qwen',        label: 'Qwen Edit',  prefixHint: '/qwen-',      getPrompt: n => n['62']?.inputs?.value     || '', getImage: n => n['47']?.inputs?.image || null },
-  'qwen-pose':       { workflow: 'qwen-pose',   label: 'Qwen Pose',  prefixHint: '/qwen-pose',  getPrompt: () => '',                              getImage: n => n['73']?.inputs?.image || null },
+  'qwen-pose':        { workflow: 'qwen-pose',   label: 'Qwen Pose',  prefixHint: '/qwen-pose',  getPrompt: () => '',                                  getImage: n => n['73']?.inputs?.image  || null },
+  'post-process-skin': { workflow: 'skin',        label: 'Skin PP',    prefixHint: '/skin-',      getPrompt: () => '',                                  getImage: n => n['337']?.inputs?.image || null },
 };
 
 function extractJobInfo(nodes) {
@@ -388,6 +389,7 @@ function extractJobInfo(nodes) {
     || nodes['72']?.inputs?.filename_prefix
     || nodes['75']?.inputs?.filename_prefix
     || nodes['45']?.inputs?.filename_prefix
+    || nodes['341']?.inputs?.filename_prefix
     || '';
 
   // Primary: _meta label stamped by scripts/label-workflows.sh
@@ -503,6 +505,30 @@ router.post('/api/comfyui/qwen-pose', async (req, res) => {
   workflow['71'].inputs.seed = (seed != null && !isNaN(seed)) ? Number(seed) : Math.floor(Math.random() * 2 ** 32);
   if (negativePrompt != null) workflow['75'].inputs.text = negativePrompt;
   workflow['72'].inputs.filename_prefix = datePrefix('qwen-pose');
+
+  try {
+    const result = await comfyPost(url, '/api/prompt', { prompt: workflow });
+    res.json({ ok: true, promptId: result.prompt_id });
+  } catch (err) {
+    res.status(500).json({ error: `ComfyUI submit failed: ${err.message}` });
+  }
+});
+
+router.post('/api/comfyui/post-process-skin', async (req, res) => {
+  const { image, denoise, seed } = req.body;
+  if (!image) return res.status(400).json({ error: 'image required' });
+
+  const denoiseVal = (denoise != null && !isNaN(denoise))
+    ? Math.min(0.6, Math.max(0.15, Number(denoise) / 100))
+    : 0.15;
+
+  const url = comfyUrl(loadConfig());
+  const workflow = JSON.parse(fs.readFileSync(path.join(WORKFLOWS_DIR, 'post-process-skin.api.json'), 'utf8'));
+
+  workflow['337'].inputs.image = image;
+  workflow['339:294'].inputs.denoise = denoiseVal;
+  workflow['339:294'].inputs.seed = (seed != null && !isNaN(seed)) ? Number(seed) : Math.floor(Math.random() * 2 ** 32);
+  workflow['341'].inputs.filename_prefix = datePrefix('skin');
 
   try {
     const result = await comfyPost(url, '/api/prompt', { prompt: workflow });

@@ -1,0 +1,162 @@
+{
+  "329": {
+    "inputs": {
+      "unet_name": "zEpicrealism_turboV1Fp8.safetensors",
+      "weight_dtype": "fp8_e4m3fn"
+    },
+    "class_type": "UNETLoader",
+    "_meta": {
+      "title": "Load Diffusion Model"
+    }
+  },
+  "332": {
+    "inputs": {
+      "clip_name": "qwen_3_4b.safetensors",
+      "type": "lumina2",
+      "device": "default"
+    },
+    "class_type": "CLIPLoader",
+    "_meta": {
+      "title": "Load CLIP"
+    }
+  },
+  "333": {
+    "inputs": {
+      "vae_name": "flux/ae.safetensors"
+    },
+    "class_type": "VAELoader",
+    "_meta": {
+      "title": "Load VAE"
+    }
+  },
+  "334": {
+    "inputs": {
+      "model_name": "4x-ClearRealityV1.pth"
+    },
+    "class_type": "UpscaleModelLoader",
+    "_meta": {
+      "title": "Load Upscale Model"
+    }
+  },
+  "337": {
+    "inputs": {
+      "image": "pasted/image (64).png"
+    },
+    "class_type": "LoadImage",
+    "_meta": {
+      "title": "Load Image"
+    }
+  },
+  "341": {
+    "inputs": {
+      "filename_prefix": "20260603/snow",
+      "images": [
+        "339:297",
+        0
+      ]
+    },
+    "class_type": "SaveImage",
+    "_meta": {
+      "title": "Save Image"
+    }
+  },
+  "344": {
+    "inputs": {
+      "images": [
+        "337",
+        0
+      ]
+    },
+    "class_type": "PreviewImage",
+    "_meta": {
+      "title": "Preview Image"
+    }
+  },
+  "339:299": {
+    "inputs": {
+      "text": "Natural lips, dewy luminous skin with visible pores, fine texture and tiny imperfections preserved, subtle specular highlights on nose, cheeks and forehead, sharp focus on skin details, beautiful realistic human face, authentic skin texture, natural freckles, soft pore details, refined smoothness without blur, subtle tone variation, natural color gradients, soft micro-shadows, subsurface scattering, hydrated skin texture, matte-natural finish, healthy glow, realistic surface roughness, true skin depth, ultra-detailed pore structure, clean complexion, photoreal clarity, 8k ultra photorealistic portrait, cinematic lighting, masterpiece",
+      "clip": [
+        "332",
+        0
+      ]
+    },
+    "class_type": "CLIPTextEncode",
+    "_meta": {
+      "title": "CLIP Text Encode (Prompt)"
+    }
+  },
+  "339:296": {
+    "inputs": {
+      "conditioning": [
+        "339:299",
+        0
+      ]
+    },
+    "class_type": "ConditioningZeroOut",
+    "_meta": {
+      "title": "ConditioningZeroOut"
+    }
+  },
+  "339:300": {
+    "inputs": {
+      "pixels": [
+        "337",
+        0
+      ],
+      "vae": [
+        "333",
+        0
+      ]
+    },
+    "class_type": "VAEEncode",
+    "_meta": {
+      "title": "VAE Encode"
+    }
+  },
+  "339:294": {
+    "inputs": {
+      "seed": 31,
+      "steps": 10,
+      "cfg": 1,
+      "sampler_name": "res_multistep",
+      "scheduler": "simple",
+      "denoise": 0.15,
+      "model": [
+        "329",
+        0
+      ],
+      "positive": [
+        "339:299",
+        0
+      ],
+      "negative": [
+        "339:296",
+        0
+      ],
+      "latent_image": [
+        "339:300",
+        0
+      ]
+    },
+    "class_type": "KSampler",
+    "_meta": {
+      "title": "KSampler"
+    }
+  },
+  "339:297": {
+    "inputs": {
+      "samples": [
+        "339:294",
+        0
+      ],
+      "vae": [
+        "333",
+        0
+      ]
+    },
+    "class_type": "VAEDecode",
+    "_meta": {
+      "title": "VAE Decode"
+    }
+  }
+}

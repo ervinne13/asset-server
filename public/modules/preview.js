@@ -77,6 +77,11 @@ export function showPreview(item) {
   }
 }
 
+export function pausePreviewVideo() {
+  currentPreviewPath = null;
+  $('preview-video').pause();
+}
+
 export function clearPreview() {
   currentPreviewPath = null;
   $('preview-empty').style.display = '';

@@ -1,6 +1,6 @@
 import { state } from './state.js';
 import { $ } from './helpers.js';
-import { showPreview } from './preview.js';
+import { showPreview, pausePreviewVideo } from './preview.js';
 
 export function refreshSelectionVisuals() {
   document.querySelectorAll('.file-card, .file-row').forEach(el => {
@@ -21,6 +21,7 @@ export function updateRightPanel() {
   if (n === 0) {
     bulkPanel.style.display = 'none';
     previewContent.style.display = 'none';
+    pausePreviewVideo();
 
     if (state.currentPath) {
       previewEmpty.style.display = 'none';

@@ -20,6 +20,7 @@ import './modules/claude-status.js';
 import { openZitPage, closeZitPage } from './modules/zit.js';
 import { openQwenPage, closeQwenPage } from './modules/qwen-i2i.js';
 import { openQwenPosePage, closeQwenPosePage } from './modules/qwen-pose.js';
+import { openPostProcessSkinPage, closePostProcessSkinPage } from './modules/post-process-skin.js';
 import { openLtxPage, closeLtxPage } from './modules/ltx-i2v.js';
 import { openQueuePage, closeQueuePage } from './modules/comfyui-queue.js';
 import { openClaudePage, closeClaudePage } from './modules/claude-page.js';
@@ -143,12 +144,14 @@ window.addEventListener('popstate', e => {
   closeZitPage();
   closeQwenPage();
   closeQwenPosePage();
+  closePostProcessSkinPage();
   closeLtxPage();
   closeQueuePage();
   closeClaudePage();
   if (e.state?.page === 'zit') openZitPage();
   else if (e.state?.page === 'qwen') openQwenPage();
   else if (e.state?.page === 'qwen-pose') openQwenPosePage();
+  else if (e.state?.page === 'post-process-skin') openPostProcessSkinPage();
   else if (e.state?.page === 'ltx') openLtxPage();
   else if (e.state?.page === 'comfy-queue') openQueuePage();
   else if (e.state?.page === 'claude') openClaudePage();
@@ -197,6 +200,9 @@ window.addEventListener('popstate', e => {
   } else if (origPathname === '/ltx-i2v') {
     history.pushState({ page: 'ltx' }, '', '/ltx-i2v');
     openLtxPage();
+  } else if (origPathname === '/post-process-skin') {
+    history.pushState({ page: 'post-process-skin' }, '', '/post-process-skin');
+    openPostProcessSkinPage();
   } else if (origPathname === '/claude') {
     history.pushState({ page: 'claude' }, '', '/claude');
     openClaudePage();
