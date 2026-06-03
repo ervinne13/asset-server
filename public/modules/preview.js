@@ -3,6 +3,8 @@ import { api } from './api.js';
 import { $, isImg, isVideo, fmtSize, fmtDate, toast } from './helpers.js';
 import { openGenerateDialog } from './generate.js';
 
+let currentPreviewPath = null;
+
 export function showPreview(item) {
   $('preview-empty').style.display = 'none';
   $('bulk-panel').style.display = 'none';
@@ -10,11 +12,15 @@ export function showPreview(item) {
 
   const img   = $('preview-img');
   const video = $('preview-video');
+  const isSameItem = item.path === currentPreviewPath;
+  currentPreviewPath = item.path;
 
-  img.style.display   = 'none';
-  video.style.display = 'none';
-  video.pause();
-  video.src = '';
+  img.style.display = 'none';
+  if (!isSameItem) {
+    video.style.display = 'none';
+    video.pause();
+    video.src = '';
+  }
 
   // Remove any leftover folder icon
   $('preview-media-wrap').querySelector('.preview-folder-icon')?.remove();
@@ -42,7 +48,9 @@ export function showPreview(item) {
       img.src = api.fileUrl(item.path, item.mtime);
       img.style.display = '';
     } else if (isVideo(item.name)) {
-      video.src = api.fileUrl(item.path, item.mtime);
+      if (!isSameItem) {
+        video.src = api.fileUrl(item.path, item.mtime);
+      }
       video.style.display = '';
     }
 
@@ -69,6 +77,7 @@ export function showPreview(item) {
 }
 
 export function clearPreview() {
+  currentPreviewPath = null;
   $('preview-empty').style.display = '';
   $('preview-content').style.display = 'none';
   $('bulk-panel').style.display = 'none';
