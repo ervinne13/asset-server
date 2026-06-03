@@ -85,6 +85,33 @@ router.get('/api/prompt', (req, res) => {
   res.json({ prompts: [], seed: null });
 });
 
+const IMAGE_EXTS = new Set(['.jpg', '.jpeg', '.png', '.gif', '.webp', '.avif', '.bmp', '.tiff', '.tif']);
+
+function findLatestImage(dir, best = { path: null, mtime: 0 }) {
+  let entries;
+  try { entries = fs.readdirSync(dir, { withFileTypes: true }); } catch { return best; }
+  for (const e of entries) {
+    const full = path.join(dir, e.name);
+    if (e.isDirectory()) {
+      findLatestImage(full, best);
+    } else if (IMAGE_EXTS.has(path.extname(e.name).toLowerCase())) {
+      try {
+        const { mtimeMs } = fs.statSync(full);
+        if (mtimeMs > best.mtime) { best.mtime = mtimeMs; best.path = full; }
+      } catch {}
+    }
+  }
+  return best;
+}
+
+router.get('/api/latest-staging-image', (req, res) => {
+  const staging = loadConfig().roots?.staging;
+  if (!staging) return res.status(404).json({ error: 'staging not configured' });
+  const { path: imgPath, mtime } = findLatestImage(staging);
+  if (!imgPath) return res.status(404).json({ error: 'no image found in staging' });
+  res.json({ path: imgPath, mtime, name: path.basename(imgPath) });
+});
+
 router.get('/api/comfyui/status', async (req, res) => {
   const url = comfyUrl(loadConfig());
   try {

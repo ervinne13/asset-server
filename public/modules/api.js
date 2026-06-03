@@ -43,6 +43,7 @@ export const api = {
     return r.json();
   }),
   uploadImageFromPath: p => api.post('/api/comfyui/upload-image', { path: p }),
+  latestStagingImage: () => api.get('/api/latest-staging-image'),
   qwenI2iNsfw: body => api.post('/api/comfyui/qwen-i2i-nsfw', body),
   qwenPose: body => api.post('/api/comfyui/qwen-pose', body),
   postProcessSkin: body => api.post('/api/comfyui/post-process-skin', body),

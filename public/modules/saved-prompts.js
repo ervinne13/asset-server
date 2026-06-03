@@ -85,8 +85,13 @@ export function makeRecentPrompts(storageKey, sectionId, listId, inputId) {
     try { return JSON.parse(localStorage.getItem(storageKey)) || []; } catch { return []; }
   }
   function addRecent(text) {
-    const list = [text, ...getRecent().filter(t => t !== text)].slice(0, MAX);
+    const t = text.trim();
+    if (!t) return;
+    const existing = getRecent();
+    if (existing[0] === t) return;
+    const list = [t, ...existing.filter(e => e.trim() !== t)].slice(0, MAX);
     localStorage.setItem(storageKey, JSON.stringify(list));
+    renderRecent();
   }
   function renderRecent() {
     const recent = getRecent();

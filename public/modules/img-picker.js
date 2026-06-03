@@ -109,6 +109,25 @@ $('img-picker-file').addEventListener('change', e => {
 
 $('img-picker-upload-btn').addEventListener('click', () => $('img-picker-file').click());
 
+$('img-picker-latest-btn').addEventListener('click', async () => {
+  const btn = $('img-picker-latest-btn');
+  btn.disabled = true;
+  try {
+    const { path: imgPath, mtime, name } = await api.latestStagingImage();
+    pickerFile = null;
+    pickerPath = imgPath;
+    pickerFileUrl = api.fileUrl(imgPath, mtime);
+    pickerTree.querySelectorAll('sl-tree-item').forEach(i => { i.selected = false; });
+    $('img-picker-preview-img').src = pickerFileUrl;
+    $('img-picker-preview-img').alt = name;
+    $('img-picker-preview').style.display = '';
+  } catch (err) {
+    toast(`Could not find latest: ${err.message}`, 'warning');
+  } finally {
+    btn.disabled = false;
+  }
+});
+
 $('img-picker-clear').addEventListener('click', () => {
   if (onClearCallback) onClearCallback();
   pickerDialog.hide();
