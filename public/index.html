@@ -39,6 +39,7 @@
   <link rel="modulepreload" href="/modules/ltx-i2v.js" />
   <link rel="modulepreload" href="/modules/comfyui-queue.js" />
   <link rel="modulepreload" href="/modules/claude-page.js" />
+  <link rel="modulepreload" href="/modules/content-farmer.js" />
 </head>
 <body>
   <div class="shell">
@@ -91,6 +92,11 @@
       <a class="sidebar-item" id="btn-claude-page" href="/claude">
         <span class="claude-dot"></span>
         Claude
+      </a>
+
+      <a class="sidebar-item" id="btn-content-farmer" href="/content-farmer">
+        <sl-icon name="robot"></sl-icon>
+        Content Farming
       </a>
 
       <div class="sidebar-section-label">Bookmarks</div>
@@ -845,6 +851,107 @@
           <a id="claude-session-link" class="claude-session-link" href="#" target="_blank" rel="noopener" style="display:none">
             Open chat session ↗
           </a>
+        </div>
+
+      </div>
+    </div>
+  </div>
+
+  <!-- ── Content Farmer Page (full-screen overlay) ── -->
+  <div id="cf-page" class="zit-page" style="display:none">
+    <div class="gen-header">
+      <button id="cf-back" class="gen-back-btn" title="Back">
+        <sl-icon name="arrow-left"></sl-icon>
+      </button>
+      <span class="gen-title">Content Farming</span>
+      <span id="cf-status" class="gen-status"></span>
+    </div>
+    <div class="zit-content">
+      <div class="zit-inner">
+
+        <!-- System prompt -->
+        <div class="zit-section">
+          <div class="zit-section-header">
+            <sl-icon name="gear"></sl-icon>
+            <span>System Prompt</span>
+          </div>
+          <textarea id="cf-system-prompt" class="zit-textarea cf-system-textarea" rows="5" spellcheck="false"></textarea>
+        </div>
+
+        <!-- Theme -->
+        <div class="zit-section">
+          <div class="zit-section-header">
+            <sl-icon name="lightbulb"></sl-icon>
+            <span>Theme</span>
+          </div>
+          <div id="cf-recent-section" class="zit-section" style="display:none">
+            <div class="zit-section-header">
+              <sl-icon name="clock-history"></sl-icon>
+              <span>Recent</span>
+            </div>
+            <div id="cf-recent-list" class="zit-recent-list"></div>
+          </div>
+          <textarea id="cf-theme" class="zit-textarea" rows="3" placeholder="e.g. candid street photography at night, neon reflections, shallow depth of field" spellcheck="true"></textarea>
+        </div>
+
+        <!-- Prompts per batch -->
+        <div class="zit-batch-row">
+          <span class="zit-batch-label">Prompts / batch</span>
+          <sl-radio-group id="cf-prompt-count-group" value="3" size="small">
+            <sl-radio-button value="2">2</sl-radio-button>
+            <sl-radio-button value="3">3</sl-radio-button>
+            <sl-radio-button value="5">5</sl-radio-button>
+          </sl-radio-group>
+          <input type="hidden" id="cf-prompt-count" value="3" />
+        </div>
+
+        <!-- Images per prompt -->
+        <div class="zit-batch-row">
+          <span class="zit-batch-label">Images / prompt</span>
+          <sl-radio-group id="cf-images-per-prompt-group" value="2" size="small">
+            <sl-radio-button value="2">2</sl-radio-button>
+            <sl-radio-button value="3">3</sl-radio-button>
+            <sl-radio-button value="4">4</sl-radio-button>
+          </sl-radio-group>
+          <input type="hidden" id="cf-images-per-prompt" value="2" />
+        </div>
+
+        <!-- Continuous mode -->
+        <div class="zit-batch-row">
+          <span class="zit-batch-label">Continuous mode</span>
+          <sl-switch id="cf-continuous" size="small">Pose variations, fixed seed</sl-switch>
+        </div>
+
+        <!-- Seed (continuous only) -->
+        <div class="zit-batch-row" id="cf-seed-row" style="display:none">
+          <span class="zit-batch-label">Seed</span>
+          <input id="cf-seed" type="number" class="gen-seed-input" placeholder="Leave blank for random" min="0" />
+        </div>
+
+        <sl-button variant="primary" id="btn-cf-toggle" size="large" class="zit-submit-btn">
+          <sl-icon slot="prefix" name="robot"></sl-icon>Start Farming
+        </sl-button>
+
+        <!-- Activity log -->
+        <div class="zit-section">
+          <div class="zit-section-header">
+            <sl-icon name="terminal"></sl-icon>
+            <span>Activity Log</span>
+          </div>
+          <div id="cf-log" class="cf-log">
+            <div class="cf-empty">No activity yet</div>
+          </div>
+        </div>
+
+        <!-- Queue history -->
+        <div class="zit-section">
+          <div class="zit-section-header">
+            <sl-icon name="clock-history"></sl-icon>
+            <span>Queued Prompts</span>
+          </div>
+          <div id="cf-history" class="cf-history">
+            <div class="cf-empty">Nothing queued yet</div>
+          </div>
         </div>
 
       </div>

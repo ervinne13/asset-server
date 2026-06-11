@@ -24,6 +24,7 @@ import { openPostProcessSkinPage, closePostProcessSkinPage } from './modules/pos
 import { openLtxPage, closeLtxPage } from './modules/ltx-i2v.js';
 import { openQueuePage, closeQueuePage } from './modules/comfyui-queue.js';
 import { openClaudePage, closeClaudePage } from './modules/claude-page.js';
+import { openContentFarmerPage, closeContentFarmerPage } from './modules/content-farmer.js';
 import { closeMobileSidebar } from './modules/mobile.js';
 
 // ── View toggle ───────────────────────────────────────────────────────────────
@@ -148,6 +149,7 @@ window.addEventListener('popstate', e => {
   closeLtxPage();
   closeQueuePage();
   closeClaudePage();
+  closeContentFarmerPage();
   if (e.state?.page === 'zit') openZitPage();
   else if (e.state?.page === 'qwen') openQwenPage();
   else if (e.state?.page === 'qwen-pose') openQwenPosePage();
@@ -155,6 +157,7 @@ window.addEventListener('popstate', e => {
   else if (e.state?.page === 'ltx') openLtxPage();
   else if (e.state?.page === 'comfy-queue') openQueuePage();
   else if (e.state?.page === 'claude') openClaudePage();
+  else if (e.state?.page === 'content-farmer') openContentFarmerPage();
   else if (e.state?.path) navigate(e.state.path, { historyMode: 'none' });
   else {
     const p = urlToPath(location.pathname, location.search);
