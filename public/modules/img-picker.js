@@ -5,6 +5,7 @@ import { state } from './state.js';
 let onSelectCallback = null;
 let onClearCallback = null;
 let pickerKind = 'image';
+let pickerReturnPath = false;
 
 let pickerFile = null;
 let pickerPath = null;
@@ -191,6 +192,14 @@ $('img-picker-cancel').addEventListener('click', () => pickerDialog.hide());
 $('img-picker-confirm').addEventListener('click', async () => {
   if (!pickerFile && !pickerPath) { pickerDialog.hide(); return; }
 
+  // Path-only mode (e.g. choosing an audio source for Join): no ComfyUI upload.
+  if (pickerReturnPath) {
+    if (!pickerPath) { pickerDialog.hide(); return; }
+    if (onSelectCallback) onSelectCallback({ path: pickerPath, displayName: pickerPath.split('/').pop(), previewUrl: pickerFileUrl, kind: pickerKind });
+    pickerDialog.hide();
+    return;
+  }
+
   const btn = $('img-picker-confirm');
   btn.loading = true;
 
@@ -216,10 +225,11 @@ $('img-picker-confirm').addEventListener('click', async () => {
   }
 });
 
-export function openImagePicker({ onSelect, onClear = null, kind = 'image' }) {
+export function openImagePicker({ onSelect, onClear = null, kind = 'image', returnPath = false }) {
   onSelectCallback = onSelect;
   onClearCallback = onClear;
   pickerKind = kind;
+  pickerReturnPath = returnPath;
 
   pickerFile = null;
   pickerPath = null;
@@ -227,8 +237,10 @@ export function openImagePicker({ onSelect, onClear = null, kind = 'image' }) {
   $('img-picker-preview').style.display = 'none';
   $('img-picker-file').value = '';
   $('img-picker-file').accept = kind === 'video' ? 'video/*' : 'image/*';
-  $('img-picker-latest-btn').style.display = kind === 'video' ? 'none' : '';
-  $('img-picker-paste-hint').style.display = kind === 'video' ? 'none' : '';
+  // returnPath needs a real server path, so device upload + "latest" don't apply.
+  $('img-picker-upload-btn').style.display = returnPath ? 'none' : '';
+  $('img-picker-latest-btn').style.display = (returnPath || kind === 'video') ? 'none' : '';
+  $('img-picker-paste-hint').style.display = (returnPath || kind === 'video') ? 'none' : '';
   pickerDialog.label = kind === 'video' ? 'Select Video' : 'Select Image';
   pickerTree.innerHTML = '';
 

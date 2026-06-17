@@ -28,6 +28,7 @@ app.use(express.static(path.join(__dirname, 'public'), { index: false }));
 app.use(require('./routes/files'));
 app.use(require('./routes/bookmarks'));
 app.use(require('./routes/move'));
+app.use(require('./routes/join'));
 app.use(require('./routes/trash'));
 app.use(require('./routes/tags'));
 app.use(require('./routes/index-search'));

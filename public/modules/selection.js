@@ -1,5 +1,5 @@
 import { state } from './state.js';
-import { $ } from './helpers.js';
+import { $, isVideo } from './helpers.js';
 import { showPreview, pausePreviewVideo } from './preview.js';
 
 export function refreshSelectionVisuals() {
@@ -45,6 +45,10 @@ export function updateRightPanel() {
     previewContent.style.display = 'none';
     bulkPanel.style.display = 'flex';
     $('bulk-count').textContent = `${n} files selected`;
+
+    const selItems = state.currentItems.filter(i => state.selectedFiles.has(i.path));
+    const allVideos = selItems.length >= 2 && selItems.every(i => !i.isDir && isVideo(i.name));
+    $('btn-bulk-join').style.display = allVideos ? '' : 'none';
   }
 }
 

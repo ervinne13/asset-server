@@ -19,6 +19,7 @@ export const api = {
   bookmarks: () => api.get('/api/bookmarks'),
   saveBookmarks: b => api.post('/api/bookmarks', b),
   move: (from, to) => api.post('/api/move', { from, to }),
+  join: body => api.post('/api/join', body),
   mkdir: path => api.post('/api/mkdir', { path }),
   rebuildIndex: () => api.post('/api/index/rebuild', {}),
   search: q => api.get(`/api/index/search?q=${encodeURIComponent(q)}`),

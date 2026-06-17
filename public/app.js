@@ -13,6 +13,7 @@ import './modules/prompt.js';
 import './modules/generate.js';
 import './modules/search.js';
 import './modules/move.js';
+import './modules/join.js';
 import './modules/trash.js';
 import './modules/keyboard.js';
 import './modules/comfyui-status.js';

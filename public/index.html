@@ -161,6 +161,9 @@
       <div id="bulk-panel" class="bulk-panel" style="display:none">
         <div class="bulk-count" id="bulk-count"></div>
         <div class="preview-actions">
+          <button class="action-btn" id="btn-bulk-join" style="display:none">
+            <sl-icon name="collection-play"></sl-icon> Join videos
+          </button>
           <button class="action-btn" id="btn-bulk-move">
             <sl-icon name="folder-symlink"></sl-icon> Move all
           </button>
@@ -454,6 +457,36 @@
       </sl-button>
       <sl-button id="img-picker-cancel" variant="default">Cancel</sl-button>
       <sl-button id="img-picker-confirm" variant="primary">Select</sl-button>
+    </div>
+  </sl-dialog>
+
+  <!-- ── Join Videos dialog ── -->
+  <sl-dialog id="join-dialog" label="Join Videos" style="--width:520px;--sl-z-index-dialog:10000">
+    <div class="join-body">
+      <div class="join-section-label">Clips (joined in this order)</div>
+      <ol id="join-clip-list" class="join-clip-list"></ol>
+
+      <div class="join-section-label">Audio</div>
+      <div class="join-audio-row">
+        <button id="join-audio-btn" class="action-btn">
+          <sl-icon name="music-note-beamed"></sl-icon> Choose audio source…
+        </button>
+        <button id="join-audio-clear" class="action-btn" style="display:none">
+          <sl-icon name="x-circle"></sl-icon> No audio
+        </button>
+        <span id="join-audio-name" class="join-audio-name">No audio (silent)</span>
+      </div>
+      <div class="join-hint">Audio is trimmed to the joined video's length.</div>
+
+      <div class="join-section-label">Output name</div>
+      <sl-input id="join-output-name" placeholder="joined-…" size="small"></sl-input>
+    </div>
+    <div slot="footer" style="display:flex;gap:8px;align-items:center;width:100%">
+      <span id="join-status" class="gen-status" style="margin-right:auto"></span>
+      <sl-button id="join-cancel" variant="default">Cancel</sl-button>
+      <sl-button id="join-confirm" variant="primary">
+        <sl-icon slot="prefix" name="collection-play"></sl-icon>Join
+      </sl-button>
     </div>
   </sl-dialog>
 
