@@ -257,6 +257,46 @@ router.post('/api/comfyui/ltx-i2v', async (req, res) => {
   }
 });
 
+router.post('/api/comfyui/mocap', async (req, res) => {
+  const { video, image, prompt, totalDuration, seed } = req.body;
+  if (!video) return res.status(400).json({ error: 'video required' });
+  if (!image) return res.status(400).json({ error: 'image required' });
+  const total = parseInt(totalDuration);
+  if (!total || total < 1) return res.status(400).json({ error: 'totalDuration must be a positive integer' });
+
+  const SEG = 5, FPS = 25;
+  const segments = Math.ceil(total / SEG);
+  const baseSeed = (seed != null && !isNaN(seed)) ? Number(seed) : Math.floor(Math.random() * 2 ** 32);
+
+  const now = new Date();
+  const date = now.toISOString().slice(0, 10).replace(/-/g, '');
+  const batch = `${date}${now.toTimeString().slice(0, 5).replace(':', '')}`;
+
+  const url = comfyUrl(loadConfig());
+  const promptIds = [];
+
+  try {
+    for (let i = 0; i < segments; i++) {
+      const segDur = (i === segments - 1) ? (total - i * SEG) : SEG;
+      const workflow = JSON.parse(fs.readFileSync(path.join(WORKFLOWS_DIR, 'scail-animation.api.json'), 'utf8'));
+
+      workflow['113'].inputs.video = video;
+      workflow['113'].inputs.skip_first_frames = i * SEG * FPS;
+      workflow['58'].inputs.image = image;
+      workflow['126'].inputs.value = segDur;
+      if (prompt?.trim()) workflow['6'].inputs.text = prompt.trim();
+      workflow['3'].inputs.seed = baseSeed;
+      workflow['49'].inputs.filename_prefix = `${date}/mocap/mocap-${batch}-seg${String(i + 1).padStart(2, '0')}`;
+
+      const result = await comfyPost(url, '/api/prompt', { prompt: workflow });
+      promptIds.push(result.prompt_id);
+    }
+    res.json({ ok: true, segments, promptIds });
+  } catch (err) {
+    res.status(500).json({ error: `ComfyUI submit failed: ${err.message}` });
+  }
+});
+
 const VIDEO_DIRECTION_SYSTEM = `You are a prompt engineer for OpenOppAI - a short-form AI video content page that animates photorealistic images using LTX 2.3.
 
 Content style: SFW but borderline. Think suggestive, eye-catching, tasteful - not explicit. The goal is allure through motion, that ends up something we can still post on social media, mainly x/twitter.
@@ -408,6 +448,7 @@ const WORKFLOW_DEFS = {
   'qwen-image-edit': { workflow: 'qwen',        label: 'Qwen Edit',  prefixHint: '/qwen-',      getPrompt: n => n['62']?.inputs?.value     || '', getImage: n => n['47']?.inputs?.image || null },
   'qwen-pose':        { workflow: 'qwen-pose',   label: 'Qwen Pose',  prefixHint: '/qwen-pose',  getPrompt: () => '',                                  getImage: n => n['73']?.inputs?.image  || null },
   'post-process-skin': { workflow: 'skin',        label: 'Skin PP',    prefixHint: '/skin-',      getPrompt: () => '',                                  getImage: n => n['337']?.inputs?.image || null },
+  'scail-animation':   { workflow: 'mocap',       label: 'Motion Cap', prefixHint: '/mocap/',     getPrompt: n => n['6']?.inputs?.text       || '', getImage: n => n['58']?.inputs?.image  || null },
 };
 
 function extractJobInfo(nodes) {
@@ -417,6 +458,7 @@ function extractJobInfo(nodes) {
     || nodes['75']?.inputs?.filename_prefix
     || nodes['45']?.inputs?.filename_prefix
     || nodes['341']?.inputs?.filename_prefix
+    || nodes['49']?.inputs?.filename_prefix
     || '';
 
   // Primary: _meta label stamped by scripts/label-workflows.sh

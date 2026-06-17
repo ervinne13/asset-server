@@ -1,9 +1,10 @@
 import { api } from './api.js';
-import { $, IMAGE_EXTS, toast } from './helpers.js';
+import { $, IMAGE_EXTS, VIDEO_EXTS, toast } from './helpers.js';
 import { state } from './state.js';
 
 let onSelectCallback = null;
 let onClearCallback = null;
+let pickerKind = 'image';
 
 let pickerFile = null;
 let pickerPath = null;
@@ -12,9 +13,39 @@ let pickerFileUrl = null;
 const pickerDialog = $('img-picker-dialog');
 const pickerTree = $('img-picker-tree');
 
+function activeExts() {
+  return pickerKind === 'video' ? VIDEO_EXTS : IMAGE_EXTS;
+}
+
+function showPreview(url, isVideo) {
+  const img = $('img-picker-preview-img');
+  const vid = $('img-picker-preview-vid');
+  if (isVideo) {
+    img.style.display = 'none';
+    vid.src = url;
+    vid.style.display = '';
+  } else {
+    vid.removeAttribute('src');
+    vid.style.display = 'none';
+    img.src = url;
+    img.style.display = '';
+  }
+  $('img-picker-preview').style.display = '';
+}
+
 export function updateSlotUI(slotId, info) {
   const el = $(slotId);
-  if (info) {
+  if (info && info.kind === 'video') {
+    el.innerHTML = '';
+    const icon = document.createElement('sl-icon');
+    icon.name = 'film';
+    el.appendChild(icon);
+    const label = document.createElement('span');
+    label.className = 'qi-img-slot-name';
+    label.textContent = info.displayName;
+    el.appendChild(label);
+    el.classList.add('has-image');
+  } else if (info) {
     el.innerHTML = '';
     const img = document.createElement('img');
     img.src = info.previewUrl;
@@ -56,6 +87,8 @@ function makePickerFolderItem(label, folderPath, icon) {
 async function populatePickerLevel(parentEl, dirPath) {
   let items;
   try { items = await api.ls(dirPath); } catch { return; }
+  const exts = activeExts();
+  const fileIcon = pickerKind === 'video' ? 'film' : 'image';
   for (const item of items) {
     if (item.isDir) {
       const ti = document.createElement('sl-tree-item');
@@ -64,9 +97,9 @@ async function populatePickerLevel(parentEl, dirPath) {
       ti._path = item.path;
       ti._isDir = true;
       parentEl.appendChild(ti);
-    } else if (IMAGE_EXTS.has(item.name.slice(item.name.lastIndexOf('.')).toLowerCase())) {
+    } else if (exts.has(item.name.slice(item.name.lastIndexOf('.')).toLowerCase())) {
       const ti = document.createElement('sl-tree-item');
-      ti.innerHTML = `<sl-icon name="image" slot="prefix" style="font-size:12px;color:var(--sl-color-neutral-500)"></sl-icon>${item.name}`;
+      ti.innerHTML = `<sl-icon name="${fileIcon}" slot="prefix" style="font-size:12px;color:var(--sl-color-neutral-500)"></sl-icon>${item.name}`;
       ti._path = item.path;
       ti._isDir = false;
       ti._fileUrl = api.fileUrl(item.path, item.mtime);
@@ -92,19 +125,40 @@ pickerTree.addEventListener('sl-selection-change', e => {
   pickerPath = sel._path;
   pickerFileUrl = sel._fileUrl;
   pickerFile = null;
-  $('img-picker-preview-img').src = pickerFileUrl;
-  $('img-picker-preview').style.display = '';
+  showPreview(pickerFileUrl, pickerKind === 'video');
 });
 
-$('img-picker-file').addEventListener('change', e => {
-  const file = e.target.files[0];
-  if (!file) return;
+function setPickerFile(file) {
   pickerFile = file;
   pickerPath = null;
   pickerFileUrl = null;
   pickerTree.querySelectorAll('sl-tree-item').forEach(i => { i.selected = false; });
-  $('img-picker-preview-img').src = URL.createObjectURL(file);
-  $('img-picker-preview').style.display = '';
+  showPreview(URL.createObjectURL(file), pickerKind === 'video');
+}
+
+$('img-picker-file').addEventListener('change', e => {
+  const file = e.target.files[0];
+  if (!file) return;
+  setPickerFile(file);
+});
+
+// Paste a copied image straight into the picker (Cmd/Ctrl+V) while it's open.
+document.addEventListener('paste', e => {
+  if (!pickerDialog.open || pickerKind !== 'image') return;
+  const items = e.clipboardData?.items;
+  if (!items) return;
+  for (const it of items) {
+    if (it.kind === 'file' && it.type.startsWith('image/')) {
+      const blob = it.getAsFile();
+      if (!blob) return;
+      e.preventDefault();
+      const ext = (it.type.split('/')[1] || 'png').split(';')[0];
+      const file = new File([blob], `pasted-${Date.now()}.${ext}`, { type: it.type });
+      setPickerFile(file);
+      toast('Image pasted');
+      return;
+    }
+  }
 });
 
 $('img-picker-upload-btn').addEventListener('click', () => $('img-picker-file').click());
@@ -118,9 +172,8 @@ $('img-picker-latest-btn').addEventListener('click', async () => {
     pickerPath = imgPath;
     pickerFileUrl = api.fileUrl(imgPath, mtime);
     pickerTree.querySelectorAll('sl-tree-item').forEach(i => { i.selected = false; });
-    $('img-picker-preview-img').src = pickerFileUrl;
     $('img-picker-preview-img').alt = name;
-    $('img-picker-preview').style.display = '';
+    showPreview(pickerFileUrl, false);
   } catch (err) {
     toast(`Could not find latest: ${err.message}`, 'warning');
   } finally {
@@ -154,7 +207,7 @@ $('img-picker-confirm').addEventListener('click', async () => {
       previewUrl = pickerFileUrl;
     }
 
-    if (onSelectCallback) onSelectCallback({ comfyFilename: result.comfyFilename, displayName, previewUrl });
+    if (onSelectCallback) onSelectCallback({ comfyFilename: result.comfyFilename, displayName, previewUrl, kind: pickerKind });
     pickerDialog.hide();
   } catch (err) {
     toast(`Upload failed: ${err.message}`, 'danger');
@@ -163,15 +216,20 @@ $('img-picker-confirm').addEventListener('click', async () => {
   }
 });
 
-export function openImagePicker({ onSelect, onClear = null }) {
+export function openImagePicker({ onSelect, onClear = null, kind = 'image' }) {
   onSelectCallback = onSelect;
   onClearCallback = onClear;
+  pickerKind = kind;
 
   pickerFile = null;
   pickerPath = null;
   pickerFileUrl = null;
   $('img-picker-preview').style.display = 'none';
   $('img-picker-file').value = '';
+  $('img-picker-file').accept = kind === 'video' ? 'video/*' : 'image/*';
+  $('img-picker-latest-btn').style.display = kind === 'video' ? 'none' : '';
+  $('img-picker-paste-hint').style.display = kind === 'video' ? 'none' : '';
+  pickerDialog.label = kind === 'video' ? 'Select Video' : 'Select Image';
   pickerTree.innerHTML = '';
 
   if (state.bookmarks?.length) {
