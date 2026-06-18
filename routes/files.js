@@ -53,6 +53,16 @@ router.post('/api/folder-view', (req, res) => {
   res.json({ ok: true });
 });
 
+router.post('/api/folder-sort', (req, res) => {
+  const { path: folderPath, sort } = req.body;
+  if (!['newest', 'oldest', 'alpha-asc', 'alpha-desc'].includes(sort)) return res.status(400).json({ error: 'invalid sort' });
+  const config = loadConfig();
+  if (!config.folderSorts) config.folderSorts = {};
+  config.folderSorts[folderPath] = sort;
+  saveConfig(config);
+  res.json({ ok: true });
+});
+
 router.get('/api/download', (req, res) => {
   const filePath = req.query.path;
   if (!filePath) return res.status(400).json({ error: 'path required' });

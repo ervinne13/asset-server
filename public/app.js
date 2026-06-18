@@ -64,13 +64,18 @@ function updateSortButton() {
 $('sort-dropdown').addEventListener('sl-select', e => {
   const sort = e.detail.item.value;
   state.sort = sort;
-  localStorage.setItem('sort', sort);
   updateSortButton();
+  if (state.currentPath) {
+    state.folderSorts[state.currentPath] = sort;
+    api.post('/api/folder-sort', { path: state.currentPath, sort }).catch(() => { });
+  }
   if (state.currentItems.length) {
     state.currentItems = sortItems(state.currentItems);
     renderFiles(state.currentItems);
   }
 });
+
+document.addEventListener('sort-changed', updateSortButton);
 
 updateSortButton();
 
@@ -181,6 +186,7 @@ window.addEventListener('popstate', e => {
   }
 
   state.folderViews = state.config.folderViews || {};
+  state.folderSorts = state.config.folderSorts || {};
   await loadBookmarks();
 
   const origPathname = location.pathname;

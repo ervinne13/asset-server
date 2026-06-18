@@ -65,7 +65,9 @@ export async function navigate(dirPath, { historyMode = 'push', _selectFile = nu
     return;
   }
 
+  state.sort = state.folderSorts[dirPath] ?? 'alpha-asc';
   state.currentItems = sortItems(items);
+  document.dispatchEvent(new CustomEvent('sort-changed'));
 
   if (state.folderViews[dirPath] !== undefined) {
     state.view = state.folderViews[dirPath];
