@@ -351,6 +351,7 @@ async function runChain(job) {
       const segDur = (i === job.total - 1) ? (job.totalDuration - i * SEG) : SEG;
       durations.push(segDur);
       job.current = i + 1;
+      job.segmentStartedAt = Date.now();
       job.stage = 'generating';
 
       const prefix = `${dirPrefix}/mocap-${job.batch}-seg${String(i + 1).padStart(2, '0')}`;
@@ -360,6 +361,7 @@ async function runChain(job) {
 
       const outPath = await waitForVideo(url, result.prompt_id, staging);
       rawPaths.push(outPath);
+      job.segmentLogs.push({ segment: i + 1, durationMs: Date.now() - job.segmentStartedAt });
 
       if (i < job.total - 1) {
         job.stage = 'extracting';
@@ -411,12 +413,24 @@ async function runChain(job) {
 }
 
 router.post('/api/comfyui/mocap', async (req, res) => {
-  const { video, image, prompt, totalDuration, seed, audio } = req.body;
+  const { video, image, prompt, totalDuration, seed, audio, forceSingle } = req.body;
   if (!video) return res.status(400).json({ error: 'video required' });
   if (!image) return res.status(400).json({ error: 'image required' });
-  const total = parseInt(totalDuration);
-  if (!total || total < 1) return res.status(400).json({ error: 'totalDuration must be a positive integer' });
   if (currentJob) return res.status(409).json({ error: 'A Motion Capture job is already running. Wait for it to finish.' });
+
+  let total;
+  if (totalDuration != null) {
+    total = parseInt(totalDuration);
+    if (!total || total < 1) return res.status(400).json({ error: 'totalDuration must be a positive integer' });
+  } else {
+    const config = loadConfig();
+    const inputDir = comfyInputDir(config);
+    if (!inputDir) return res.status(400).json({ error: 'comfyInputDir not configured — cannot probe video duration' });
+    const videoPath = path.join(inputDir, video);
+    const probed = await probeDuration(videoPath).catch(() => null);
+    if (!probed || probed < 1) return res.status(400).json({ error: 'Could not determine video duration — specify totalDuration manually' });
+    total = Math.ceil(probed);
+  }
 
   const now = new Date();
   const batch = `${now.toISOString().slice(0, 10).replace(/-/g, '')}${now.toTimeString().slice(0, 5).replace(':', '')}`;
@@ -429,7 +443,7 @@ router.post('/api/comfyui/mocap', async (req, res) => {
     totalDuration: total,
     seed: (seed != null && !isNaN(seed)) ? Number(seed) : Math.floor(Math.random() * 2 ** 32),
     audio: !!audio,
-    total: Math.ceil(total / SEG),
+    total: forceSingle ? 1 : Math.ceil(total / SEG),
     current: 0,
     stage: 'queued',
     status: 'running',
@@ -437,6 +451,8 @@ router.post('/api/comfyui/mocap', async (req, res) => {
     error: null,
     warning: null,
     startedAt: Date.now(),
+    segmentLogs: [],
+    segmentStartedAt: null,
   };
   currentJob = job;
   runChain(job);
@@ -446,8 +462,8 @@ router.post('/api/comfyui/mocap', async (req, res) => {
 
 function publicJob(j) {
   if (!j) return null;
-  const { id, batch, status, stage, current, total, output, error, warning, audio } = j;
-  return { id, batch, status, stage, current, total, output, error, warning, audio };
+  const { id, batch, status, stage, current, total, output, error, warning, audio, segmentLogs, segmentStartedAt, startedAt } = j;
+  return { id, batch, status, stage, current, total, output, error, warning, audio, segmentLogs, segmentStartedAt, startedAt };
 }
 
 router.get('/api/comfyui/mocap/status', (req, res) => {

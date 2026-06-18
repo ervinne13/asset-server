@@ -14,7 +14,7 @@ import './modules/generate.js';
 import './modules/search.js';
 import './modules/move.js';
 import './modules/join.js';
-import './modules/trash.js';
+import { openTrashPage, closeTrashPage } from './modules/trash.js';
 import './modules/keyboard.js';
 import './modules/comfyui-status.js';
 import './modules/claude-status.js';
@@ -159,6 +159,7 @@ window.addEventListener('popstate', e => {
   closeQueuePage();
   closeClaudePage();
   closeContentFarmerPage();
+  closeTrashPage();
   if (e.state?.page === 'zit') openZitPage();
   else if (e.state?.page === 'qwen') openQwenPage();
   else if (e.state?.page === 'qwen-pose') openQwenPosePage();
@@ -168,6 +169,7 @@ window.addEventListener('popstate', e => {
   else if (e.state?.page === 'comfy-queue') openQueuePage();
   else if (e.state?.page === 'claude') openClaudePage();
   else if (e.state?.page === 'content-farmer') openContentFarmerPage();
+  else if (e.state?.page === 'trash') openTrashPage();
   else if (e.state?.path) navigate(e.state.path, { historyMode: 'none' });
   else {
     const p = urlToPath(location.pathname, location.search);

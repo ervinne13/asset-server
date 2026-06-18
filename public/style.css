@@ -38,6 +38,7 @@ body {
   flex-direction: column;
   overflow-y: auto;
   overflow-x: hidden;
+  height: 100vh;
 }
 
 .sidebar-header {
@@ -262,6 +263,25 @@ body {
 
 #btn-claude-page.rc-on .claude-dot {
   background: var(--sl-color-warning-500);
+}
+
+.mc-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  flex-shrink: 0;
+  background: transparent;
+  transition: background 0.3s;
+}
+
+#btn-motion-capture.mc-running .mc-dot {
+  background: var(--sl-color-success-500);
+  animation: mc-dot-pulse 1.5s ease-in-out infinite;
+}
+
+@keyframes mc-dot-pulse {
+  0%, 100% { opacity: 1; }
+  50%       { opacity: 0.35; }
 }
 
 /* ── Claude page ─────────────────────────────────────────────────────────────── */
@@ -2169,30 +2189,78 @@ sl-dialog {
 /* ── Image picker dialog ─────────────────────────────────────────────────── */
 
 .img-picker-body {
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 14px;
+  height: clamp(360px, 58vh, 680px);
 }
 
-.img-picker-upload-row {
+.img-picker-nav {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.img-picker-actions {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.img-picker-preview-panel {
+  border: 1px solid var(--sl-color-neutral-200);
+  border-radius: var(--sl-border-radius-medium);
+  background: var(--sl-color-neutral-50);
   display: flex;
   align-items: center;
-  gap: 12px;
+  justify-content: center;
+  overflow: hidden;
+  min-height: 0;
+  position: relative;
 }
 
 .img-picker-preview {
-  width: 64px;
-  height: 64px;
-  border-radius: var(--sl-border-radius-medium);
-  overflow: hidden;
-  border: 1px solid var(--sl-color-neutral-300);
-  flex-shrink: 0;
-}
-
-.img-picker-preview img {
   width: 100%;
   height: 100%;
-  object-fit: cover;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.img-picker-preview img,
+.img-picker-preview video {
+  max-width: 100%;
+  max-height: 100%;
+  object-fit: contain;
+}
+
+.img-picker-placeholder {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+  color: var(--sl-color-neutral-300);
+  pointer-events: none;
+}
+
+.img-picker-placeholder sl-icon {
+  font-size: 52px;
+}
+
+.img-picker-placeholder span {
+  font-size: 12px;
+}
+
+@media (max-width: 600px) {
+  .img-picker-body {
+    grid-template-columns: 1fr;
+    height: auto;
+  }
+  .img-picker-preview-panel {
+    height: 200px;
+  }
 }
 
 .mc-progress {
@@ -2230,6 +2298,31 @@ sl-dialog {
 .mc-progress-hint {
   font-size: 11px;
   color: var(--sl-color-neutral-400);
+}
+
+.mc-log {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  margin-top: 2px;
+}
+
+.mc-log-entry {
+  font-size: 12px;
+  color: var(--sl-color-neutral-500);
+  font-variant-numeric: tabular-nums;
+}
+
+.mc-log-entry-current {
+  color: var(--sl-color-neutral-700);
+  font-weight: 500;
+}
+
+.mc-eta {
+  font-size: 12px;
+  color: var(--sl-color-neutral-500);
+  font-style: italic;
+  margin-top: 2px;
 }
 
 .join-body {
@@ -2314,8 +2407,8 @@ sl-dialog {
 }
 
 .img-picker-tree {
-  min-height: 200px;
-  max-height: 50vh;
+  flex: 1;
+  min-height: 0;
   overflow-y: auto;
   border: 1px solid var(--sl-color-neutral-300);
   border-radius: var(--sl-border-radius-medium);
@@ -2445,4 +2538,64 @@ sl-dialog {
   font-size: 13px;
   line-height: 1.5;
   color: var(--sl-color-neutral-800);
+}
+
+/* ── Trash page ──────────────────────────────────────────────────────────────── */
+
+.trash-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.trash-empty {
+  color: var(--sl-color-neutral-400);
+  font-size: 13px;
+  padding: 24px 0;
+  text-align: center;
+}
+
+.trash-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 12px;
+  border: 1px solid var(--sl-color-neutral-200);
+  border-radius: var(--sl-border-radius-medium);
+  background: var(--sl-color-neutral-0);
+}
+
+.trash-row-icon {
+  font-size: 18px;
+  color: var(--sl-color-neutral-400);
+  flex-shrink: 0;
+}
+
+.trash-row-info {
+  flex: 1;
+  min-width: 0;
+}
+
+.trash-row-name {
+  font-size: 13px;
+  font-weight: 500;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.trash-row-path {
+  font-size: 11px;
+  color: var(--sl-color-neutral-400);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  margin-top: 1px;
+}
+
+.trash-row-age {
+  font-size: 11px;
+  color: var(--sl-color-neutral-400);
+  flex-shrink: 0;
+  white-space: nowrap;
 }

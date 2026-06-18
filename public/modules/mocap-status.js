@@ -1,15 +1,22 @@
 import { api } from './api.js';
-import { toast } from './helpers.js';
+import { $, toast } from './helpers.js';
 
 // Background notifier for Motion Capture chain jobs: toasts when a job finishes
-// even if the Motion Capture page is closed (as long as a tab is open).
+// and drives the sidebar running indicator, even if the Motion Capture page is closed.
 
 let lastNotified = null;
 let primed = false;
 
+function setSidebarDot(running) {
+  $('btn-motion-capture').classList.toggle('mc-running', running);
+}
+
 async function tick() {
   let job;
   try { ({ job } = await api.mocapStatus()); } catch { return; }
+
+  setSidebarDot(!!(job && job.status === 'running'));
+
   if (!job) return;
 
   const terminal = job.status === 'done' || job.status === 'error';

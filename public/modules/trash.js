@@ -178,3 +178,82 @@ $('btn-bulk-delete').onclick = () => {
   const items = state.currentItems.filter(i => state.selectedFiles.has(i.path));
   bulkSoftDelete(items);
 };
+
+// ── Trash page ────────────────────────────────────────────────────────────────
+
+function fmtAge(ts) {
+  if (!ts) return '';
+  const secs = Math.floor((Date.now() - ts) / 1000);
+  if (secs < 60) return 'just now';
+  const mins = Math.floor(secs / 60);
+  if (mins < 60) return `${mins}m ago`;
+  const hrs = Math.floor(mins / 60);
+  if (hrs < 24) return `${hrs}h ago`;
+  return `${Math.floor(hrs / 24)}d ago`;
+}
+
+async function loadTrashList() {
+  const listEl = $('trash-list');
+  const statusEl = $('trash-status');
+  listEl.innerHTML = '<div class="trash-empty">Loading…</div>';
+  try {
+    const { items } = await api.get('/api/trash/list');
+    if (!items.length) {
+      listEl.innerHTML = '<div class="trash-empty">Trash is empty</div>';
+      return;
+    }
+    listEl.innerHTML = '';
+    for (const item of items) {
+      const row = document.createElement('div');
+      row.className = 'trash-row';
+      row.innerHTML = `
+        <sl-icon name="${item.isDir ? 'folder2' : 'file-earmark'}" class="trash-row-icon"></sl-icon>
+        <div class="trash-row-info">
+          <div class="trash-row-name">${item.name}</div>
+          <div class="trash-row-path">${item.originalPath || '(original path unknown)'}</div>
+        </div>
+        <span class="trash-row-age">${fmtAge(item.trashedAt)}</span>
+        <sl-button size="small" class="trash-btn-restore" variant="default">Restore</sl-button>
+        <sl-button size="small" class="trash-btn-purge" variant="danger">Delete</sl-button>
+      `;
+      row.querySelector('.trash-btn-restore').addEventListener('click', async () => {
+        if (!item.originalPath) { toast('No original path recorded — cannot restore', 'warning'); return; }
+        try {
+          await api.post('/api/trash/restore', { trashPath: item.trashPath });
+          toast(`Restored → ${item.originalPath}`);
+          row.remove();
+          if (!$('trash-list').children.length) $('trash-list').innerHTML = '<div class="trash-empty">Trash is empty</div>';
+        } catch (err) { toast(`Restore failed: ${err.message}`, 'danger'); }
+      });
+      row.querySelector('.trash-btn-purge').addEventListener('click', async () => {
+        try {
+          await api.post('/api/trash/purge', { trashPath: item.trashPath });
+          row.remove();
+          if (!$('trash-list').children.length) $('trash-list').innerHTML = '<div class="trash-empty">Trash is empty</div>';
+        } catch (err) { toast(`Delete failed: ${err.message}`, 'danger'); }
+      });
+      listEl.appendChild(row);
+    }
+    statusEl.textContent = `${items.length} item${items.length !== 1 ? 's' : ''}`;
+  } catch (err) {
+    listEl.innerHTML = `<div class="trash-empty">Failed to load: ${err.message}</div>`;
+  }
+}
+
+export function openTrashPage() {
+  $('trash-page').style.display = 'flex';
+  $('trash-status').textContent = '';
+  loadTrashList();
+}
+
+export function closeTrashPage() {
+  $('trash-page').style.display = 'none';
+}
+
+$('btn-trash').addEventListener('click', e => {
+  e.preventDefault();
+  history.pushState({ page: 'trash' }, '', '/trash');
+  openTrashPage();
+});
+
+$('trash-back').addEventListener('click', () => history.back());

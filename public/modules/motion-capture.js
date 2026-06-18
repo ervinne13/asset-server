@@ -38,6 +38,48 @@ function stageText(job) {
   }
 }
 
+function formatDuration(ms) {
+  const totalSecs = Math.floor(ms / 1000);
+  const mins = Math.floor(totalSecs / 60);
+  const secs = totalSecs % 60;
+  return mins > 0 ? `${mins}m ${secs}s` : `${secs}s`;
+}
+
+function renderLog(job) {
+  const logs = job.segmentLogs || [];
+
+  const lines = logs.map(e => ({
+    text: `${e.segment}/${job.total} generated in ${formatDuration(e.durationMs)}`,
+    current: false,
+  }));
+
+  if (job.stage === 'generating' && logs.length < job.total) {
+    const elapsed = job.segmentStartedAt ? Date.now() - job.segmentStartedAt : 0;
+    lines.push({
+      text: `${job.current}/${job.total} generating (${formatDuration(elapsed)} so far)`,
+      current: true,
+    });
+  }
+
+  $('mc-log').innerHTML = lines
+    .map(l => `<div class="mc-log-entry${l.current ? ' mc-log-entry-current' : ''}">${l.text}</div>`)
+    .join('');
+
+  const remaining = job.total - logs.length;
+  const etaEl = $('mc-eta');
+  if (remaining > 0 && job.status === 'running') {
+    const avgMs = logs.length > 0
+      ? logs.reduce((sum, e) => sum + e.durationMs, 0) / logs.length
+      : 15 * 60 * 1000;
+    const elapsed = job.segmentStartedAt && job.stage === 'generating'
+      ? Date.now() - job.segmentStartedAt : 0;
+    const etaMs = Math.max(0, avgMs - elapsed) + (remaining - 1) * avgMs;
+    etaEl.textContent = `ETA: ~${formatDuration(etaMs)}`;
+  } else {
+    etaEl.textContent = '';
+  }
+}
+
 function applyJob(job) {
   const progress = $('mc-progress');
   const submit = $('btn-mc-submit');
@@ -60,6 +102,8 @@ function applyJob(job) {
     $('mc-progress-stage').textContent = stageText(job);
     $('mc-progress-detail').textContent = job.warning || (job.audio ? 'Audio: from reference video' : 'Audio: none');
   }
+
+  renderLog(job);
 
   if (!running) stopPolling();
 }
@@ -91,11 +135,15 @@ export function openMotionCapturePage() {
   updateSlotUI('mc-video-slot', null);
   updateSlotUI('mc-img-slot', null);
   $('motion-capture-page').style.display = 'flex';
-  // Resume the live progress view only if a job is actually still running.
   $('mc-progress').style.display = 'none';
+  $('mc-log').innerHTML = '';
+  $('mc-eta').textContent = '';
   $('btn-mc-submit').style.display = '';
   api.mocapStatus().then(({ job }) => {
-    if (job && job.status === 'running') { applyJob(job); startPolling(); }
+    if (job && (job.status === 'running' || job.status === 'done' || job.status === 'error')) {
+      applyJob(job);
+      if (job.status === 'running') startPolling();
+    }
   }).catch(() => {});
 }
 
@@ -114,17 +162,26 @@ $('motion-capture-back').addEventListener('click', () => history.back());
 
 // ── Generate ──────────────────────────────────────────────────────────────────
 
+$('mc-full-duration').addEventListener('sl-change', e => {
+  $('mc-duration-row').style.display = e.target.checked ? 'none' : '';
+});
+
 $('btn-mc-submit').addEventListener('click', async () => {
   if (!videoInfo) { toast('Select a reference video', 'warning'); return; }
   if (!imageInfo) { toast('Select a reference image', 'warning'); return; }
 
-  const totalDuration = parseInt($('mc-duration').value);
-  if (!totalDuration || totalDuration < 1) { toast('Enter a total duration (seconds)', 'warning'); return; }
+  const fullDuration = $('mc-full-duration').checked;
+  let totalDuration;
+  if (!fullDuration) {
+    totalDuration = parseInt($('mc-duration').value);
+    if (!totalDuration || totalDuration < 1) { toast('Enter a total duration (seconds)', 'warning'); return; }
+  }
 
   const prompt = $('mc-prompt').value.trim() || undefined;
   const seedVal = $('mc-seed').value.trim();
   const seed = seedVal ? parseInt(seedVal) : undefined;
   const audio = $('mc-audio').checked;
+  const forceSingle = $('mc-force-single').checked;
 
   const btn = $('btn-mc-submit');
   btn.loading = true;
@@ -138,6 +195,7 @@ $('btn-mc-submit').addEventListener('click', async () => {
       totalDuration,
       seed,
       audio,
+      forceSingle,
     });
     $('motion-capture-status').textContent = '';
     toast('Started — rendering segments sequentially');

@@ -66,6 +66,10 @@
         <sl-icon name="folder2"></sl-icon>
         Library Root
       </a>
+      <a class="sidebar-item" id="btn-trash" href="/trash">
+        <sl-icon name="trash3"></sl-icon>
+        Trash
+      </a>
 
       <div class="sidebar-section-label">AI</div>
       <a class="sidebar-item" id="btn-zit-txt2img" href="/zit">
@@ -85,6 +89,7 @@
         LTX I2V
       </a>
       <a class="sidebar-item" id="btn-motion-capture" href="/motion-capture">
+        <span class="mc-dot" id="mc-dot"></span>
         <sl-icon name="person-arms-up"></sl-icon>
         Motion Cap
       </a>
@@ -432,24 +437,34 @@
   </div>
 
   <!-- ── Image Picker Dialog ── -->
-  <sl-dialog id="img-picker-dialog" label="Select Image" style="--width:560px;--sl-z-index-dialog:10001">
+  <sl-dialog id="img-picker-dialog" label="Select Image" style="--width:min(92vw,900px);--sl-z-index-dialog:10001">
     <div class="img-picker-body">
-      <div class="img-picker-upload-row">
-        <input type="file" id="img-picker-file" accept="image/*" style="display:none" />
-        <button id="img-picker-upload-btn" class="action-btn">
-          <sl-icon name="upload"></sl-icon> Upload from device
-        </button>
-        <button id="img-picker-latest-btn" class="action-btn">
-          <sl-icon name="clock-history"></sl-icon> Use Latest in Staging
-        </button>
+      <!-- Left: actions + tree navigation -->
+      <div class="img-picker-nav">
+        <div class="img-picker-actions">
+          <input type="file" id="img-picker-file" accept="image/*" style="display:none" />
+          <button id="img-picker-upload-btn" class="action-btn">
+            <sl-icon name="upload"></sl-icon> Upload from device
+          </button>
+          <button id="img-picker-latest-btn" class="action-btn">
+            <sl-icon name="clock-history"></sl-icon> Use Latest in Staging
+          </button>
+        </div>
+        <div id="img-picker-paste-hint" class="img-picker-paste-hint">Tip: paste a copied image with <kbd>⌘/Ctrl + V</kbd></div>
+        <div class="img-picker-sep">or select from library</div>
+        <sl-tree id="img-picker-tree" selection="single" class="img-picker-tree"></sl-tree>
+      </div>
+      <!-- Right: preview panel -->
+      <div class="img-picker-preview-panel">
         <div id="img-picker-preview" class="img-picker-preview" style="display:none">
           <img id="img-picker-preview-img" src="" alt="" />
-          <video id="img-picker-preview-vid" src="" muted playsinline style="display:none;max-width:100%;max-height:100%"></video>
+          <video id="img-picker-preview-vid" src="" muted playsinline controls style="display:none"></video>
+        </div>
+        <div id="img-picker-placeholder" class="img-picker-placeholder">
+          <sl-icon name="image"></sl-icon>
+          <span>Select a file to preview</span>
         </div>
       </div>
-      <div id="img-picker-paste-hint" class="img-picker-paste-hint">Tip: paste a copied image with <kbd>⌘/Ctrl + V</kbd></div>
-      <div class="img-picker-sep">or select from library</div>
-      <sl-tree id="img-picker-tree" selection="single" class="img-picker-tree"></sl-tree>
     </div>
     <div slot="footer" style="display:flex;gap:8px;align-items:center;width:100%">
       <sl-button id="img-picker-clear" variant="default" style="margin-right:auto">
@@ -732,9 +747,12 @@
 
         <!-- Duration -->
         <div class="zit-section">
-          <label class="gen-label" for="mc-duration">Total Duration (seconds)</label>
-          <input id="mc-duration" type="number" class="gen-seed-input" value="5" min="1" step="1" />
-          <small style="color:var(--sl-color-neutral-500)">Rendered as chained 5s segments (e.g. 12s → 5 + 5 + 2), each continuing from the previous one, then auto-joined into a single clip. Runs one segment at a time. Keep within the reference video's length.</small>
+          <sl-checkbox id="mc-full-duration" checked>Full Reference Video Duration</sl-checkbox>
+          <div id="mc-duration-row" style="display:none; margin-top:10px">
+            <label class="gen-label" for="mc-duration">Total Duration (seconds)</label>
+            <input id="mc-duration" type="number" class="gen-seed-input" value="5" min="1" step="1" />
+          </div>
+          <small style="color:var(--sl-color-neutral-500);margin-top:6px;display:block">Rendered as chained 5s segments, each continuing from the previous one, then auto-joined into a single clip. Runs one segment at a time.</small>
         </div>
 
         <!-- Prompt -->
@@ -754,6 +772,7 @@
           <div class="gen-advanced-body">
             <label class="gen-label">Seed <small>(blank = random, shared across all segments)</small></label>
             <input id="mc-seed" type="number" class="gen-seed-input" placeholder="Random" min="0" />
+            <sl-checkbox id="mc-force-single" style="margin-top:10px">Force single generation <small>(skip 5s chunking — generate the full duration in one pass)</small></sl-checkbox>
           </div>
         </details>
 
@@ -769,7 +788,9 @@
             <span id="mc-progress-stage" class="mc-progress-stage">Starting…</span>
           </div>
           <div id="mc-progress-detail" class="mc-progress-detail"></div>
-          <div class="mc-progress-hint">This runs on the server — you can close this page or the browser; the clip will appear in staging when done.</div>
+          <div id="mc-log" class="mc-log"></div>
+          <div id="mc-eta" class="mc-eta"></div>
+          <div class="mc-progress-hint">This runs on the server — close this page freely and come back anytime to check progress.</div>
         </div>
 
       </div>
@@ -1084,6 +1105,22 @@
           </div>
         </div>
 
+      </div>
+    </div>
+  </div>
+
+  <!-- ── Trash Page (full-screen overlay) ── -->
+  <div id="trash-page" class="zit-page" style="display:none">
+    <div class="gen-header">
+      <button id="trash-back" class="gen-back-btn" title="Back">
+        <sl-icon name="arrow-left"></sl-icon>
+      </button>
+      <span class="gen-title">Trash</span>
+      <span id="trash-status" class="gen-status"></span>
+    </div>
+    <div class="zit-content">
+      <div class="zit-inner">
+        <div id="trash-list" class="trash-list"></div>
       </div>
     </div>
   </div>

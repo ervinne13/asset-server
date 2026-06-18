@@ -26,21 +26,29 @@ function showPreview(url, isVideo) {
     vid.src = url;
     vid.style.display = '';
   } else {
+    vid.pause();
     vid.removeAttribute('src');
     vid.style.display = 'none';
     img.src = url;
     img.style.display = '';
   }
   $('img-picker-preview').style.display = '';
+  $('img-picker-placeholder').style.display = 'none';
 }
 
 export function updateSlotUI(slotId, info) {
   const el = $(slotId);
   if (info && info.kind === 'video') {
     el.innerHTML = '';
-    const icon = document.createElement('sl-icon');
-    icon.name = 'film';
-    el.appendChild(icon);
+    const vid = document.createElement('video');
+    vid.src = info.previewUrl;
+    vid.className = 'qi-img-slot-preview';
+    vid.muted = true;
+    vid.loop = true;
+    vid.preload = 'metadata';
+    vid.onmouseenter = () => vid.play().catch(() => {});
+    vid.onmouseleave = () => { vid.pause(); vid.currentTime = 0; };
+    el.appendChild(vid);
     const label = document.createElement('span');
     label.className = 'qi-img-slot-name';
     label.textContent = info.displayName;
@@ -235,6 +243,10 @@ export function openImagePicker({ onSelect, onClear = null, kind = 'image', retu
   pickerPath = null;
   pickerFileUrl = null;
   $('img-picker-preview').style.display = 'none';
+  $('img-picker-preview-img').src = '';
+  $('img-picker-preview-vid').pause();
+  $('img-picker-preview-vid').removeAttribute('src');
+  $('img-picker-placeholder').style.display = '';
   $('img-picker-file').value = '';
   $('img-picker-file').accept = kind === 'video' ? 'video/*' : 'image/*';
   // returnPath needs a real server path, so device upload + "latest" don't apply.
@@ -242,6 +254,7 @@ export function openImagePicker({ onSelect, onClear = null, kind = 'image', retu
   $('img-picker-latest-btn').style.display = (returnPath || kind === 'video') ? 'none' : '';
   $('img-picker-paste-hint').style.display = (returnPath || kind === 'video') ? 'none' : '';
   pickerDialog.label = kind === 'video' ? 'Select Video' : 'Select Image';
+  $('img-picker-placeholder').innerHTML = `<sl-icon name="${kind === 'video' ? 'film' : 'image'}"></sl-icon><span>Select a file to preview</span>`;
   pickerTree.innerHTML = '';
 
   if (state.bookmarks?.length) {
