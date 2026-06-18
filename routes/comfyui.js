@@ -5,6 +5,7 @@ const path = require('path');
 const { execFileSync, execFile } = require('child_process');
 const { loadConfig, isAllowedPath } = require('../lib/config');
 const { comfyGet, comfyPost, readPngTextChunks, extractPrompts, extractSeed } = require('../lib/comfyui');
+const { extractLastFrame, probeDuration, joinVideos } = require('../lib/video');
 const { pollAndSaveImage } = require('./saved-prompts');
 
 const router = express.Router();
@@ -257,44 +258,200 @@ router.post('/api/comfyui/ltx-i2v', async (req, res) => {
   }
 });
 
+// ── Motion Capture: sequential chained generation ──────────────────────────────
+// Each segment animates the last frame of the previous segment so the joined clip
+// is frame-continuous (no 5s "snap"). Runs as a server-side background job.
+
+const SEG = 5, FPS = 25;
+const VIDEO_OUT_EXTS = new Set(['.mp4', '.webm', '.mov', '.mkv', '.gif']);
+
+let currentJob = null;
+let lastJob = null;
+
+function comfyInputDir(config) {
+  if (config.comfyInputDir) return config.comfyInputDir;
+  const staging = config.roots?.staging;
+  return staging ? path.join(path.dirname(staging), 'input') : null;
+}
+
+function uploadFrameToComfy(url, filePath) {
+  const out = execFileSync('curl', ['-s', '-F', `image=@${filePath}`, `${url}/api/upload/image`],
+    { encoding: 'utf8', timeout: 30000 });
+  const r = JSON.parse(out);
+  return r.subfolder ? `${r.subfolder}/${r.name}` : r.name;
+}
+
+function resolveVideoOutput(entry, staging) {
+  for (const nodeOut of Object.values(entry.outputs || {})) {
+    for (const arr of Object.values(nodeOut)) {
+      if (!Array.isArray(arr)) continue;
+      for (const item of arr) {
+        if (!item || typeof item.filename !== 'string') continue;
+        if (!VIDEO_OUT_EXTS.has(path.extname(item.filename).toLowerCase())) continue;
+        return item.fullpath || path.join(staging, item.subfolder || '', item.filename);
+      }
+    }
+  }
+  return null;
+}
+
+async function waitForVideo(url, promptId, staging, timeoutMs = 45 * 60 * 1000) {
+  const deadline = Date.now() + timeoutMs;
+  let grace = 0;
+  while (Date.now() < deadline) {
+    await new Promise(r => setTimeout(r, 4000));
+    try {
+      const history = await comfyGet(url, `/history/${promptId}`);
+      const entry = history[promptId];
+      if (entry) {
+        const out = resolveVideoOutput(entry, staging);
+        if (out) return out;
+        if (entry.status && entry.status.completed === false) throw new Error('segment did not complete');
+      }
+      const queue = await comfyGet(url, '/api/queue');
+      const ids = [...(queue.queue_running || []), ...(queue.queue_pending || [])].map(e => e[1]);
+      if (!ids.includes(promptId)) {
+        if (++grace >= 3) throw new Error('segment left the queue without producing a video (failed or cancelled)');
+      } else {
+        grace = 0;
+      }
+    } catch (err) {
+      if (/did not complete|left the queue/.test(err.message)) throw err;
+      // transient comfy/network error → keep polling
+    }
+  }
+  throw new Error('timed out waiting for segment to render');
+}
+
+function buildSegment(image, video, skip, segDur, prompt, seed, prefix) {
+  const wf = JSON.parse(fs.readFileSync(path.join(WORKFLOWS_DIR, 'scail-animation.api.json'), 'utf8'));
+  wf['113'].inputs.video = video;
+  wf['113'].inputs.skip_first_frames = skip;
+  wf['58'].inputs.image = image;
+  wf['126'].inputs.value = segDur;
+  if (prompt) wf['6'].inputs.text = prompt;
+  wf['3'].inputs.seed = seed;
+  wf['49'].inputs.filename_prefix = prefix;
+  return wf;
+}
+
+async function runChain(job) {
+  const config = loadConfig();
+  const url = comfyUrl(config);
+  const staging = config.roots?.staging;
+  const date = new Date().toISOString().slice(0, 10).replace(/-/g, '');
+  const dirPrefix = `${date}/mocap`;
+
+  let refImage = job.image;
+  const rawPaths = [];
+  const durations = [];
+
+  try {
+    for (let i = 0; i < job.total; i++) {
+      const segDur = (i === job.total - 1) ? (job.totalDuration - i * SEG) : SEG;
+      durations.push(segDur);
+      job.current = i + 1;
+      job.stage = 'generating';
+
+      const prefix = `${dirPrefix}/mocap-${job.batch}-seg${String(i + 1).padStart(2, '0')}`;
+      const wf = buildSegment(refImage, job.video, i * SEG * FPS, segDur, job.prompt, job.seed, prefix);
+      const result = await comfyPost(url, '/api/prompt', { prompt: wf });
+      if (!result.prompt_id) throw new Error(`ComfyUI rejected segment ${i + 1}`);
+
+      const outPath = await waitForVideo(url, result.prompt_id, staging);
+      rawPaths.push(outPath);
+
+      if (i < job.total - 1) {
+        job.stage = 'extracting';
+        const png = path.join(os.tmpdir(), `mocap-${job.batch}-frame${i + 1}.png`);
+        await extractLastFrame(outPath, png);
+        refImage = uploadFrameToComfy(url, png);
+        fs.unlink(png, () => {});
+      }
+    }
+
+    job.stage = 'joining';
+    const output = path.join(staging, dirPrefix, `mocap-${job.batch}.mp4`);
+
+    let audioPath;
+    if (job.audio) {
+      const inputDir = comfyInputDir(config);
+      const candidate = inputDir ? path.join(inputDir, job.video) : null;
+      if (candidate && fs.existsSync(candidate)) {
+        audioPath = candidate;
+        job.stage = 'joining-audio';
+      } else {
+        job.warning = 'reference video audio not found — output is silent';
+      }
+    }
+
+    await joinVideos({ inputs: rawPaths, output, audioPath });
+
+    // Verify the join before deleting any raw segments.
+    const expected = durations.reduce((a, b) => a + b, 0);
+    const actual = await probeDuration(output);
+    const ok = fs.existsSync(output) && actual != null && Math.abs(actual - expected) <= Math.max(1.5, expected * 0.15);
+    if (!ok) throw new Error(`join verification failed (expected ~${expected}s, got ${actual}s) — raws kept`);
+
+    for (const p of rawPaths) { try { fs.unlinkSync(p); } catch {} }
+
+    job.output = output;
+    job.stage = 'done';
+    job.status = 'done';
+    console.log(`[mocap] job ${job.id} done → ${output}`);
+  } catch (err) {
+    job.status = 'error';
+    job.error = err.message;
+    job.rawPaths = rawPaths;
+    console.error(`[mocap] job ${job.id} failed:`, err.message);
+  } finally {
+    lastJob = job;
+    if (currentJob && currentJob.id === job.id) currentJob = null;
+  }
+}
+
 router.post('/api/comfyui/mocap', async (req, res) => {
-  const { video, image, prompt, totalDuration, seed } = req.body;
+  const { video, image, prompt, totalDuration, seed, audio } = req.body;
   if (!video) return res.status(400).json({ error: 'video required' });
   if (!image) return res.status(400).json({ error: 'image required' });
   const total = parseInt(totalDuration);
   if (!total || total < 1) return res.status(400).json({ error: 'totalDuration must be a positive integer' });
-
-  const SEG = 5, FPS = 25;
-  const segments = Math.ceil(total / SEG);
-  const baseSeed = (seed != null && !isNaN(seed)) ? Number(seed) : Math.floor(Math.random() * 2 ** 32);
+  if (currentJob) return res.status(409).json({ error: 'A Motion Capture job is already running. Wait for it to finish.' });
 
   const now = new Date();
-  const date = now.toISOString().slice(0, 10).replace(/-/g, '');
-  const batch = `${date}${now.toTimeString().slice(0, 5).replace(':', '')}`;
+  const batch = `${now.toISOString().slice(0, 10).replace(/-/g, '')}${now.toTimeString().slice(0, 5).replace(':', '')}`;
 
-  const url = comfyUrl(loadConfig());
-  const promptIds = [];
+  const job = {
+    id: `mocap-${Date.now()}`,
+    batch,
+    video, image,
+    prompt: prompt?.trim() || '',
+    totalDuration: total,
+    seed: (seed != null && !isNaN(seed)) ? Number(seed) : Math.floor(Math.random() * 2 ** 32),
+    audio: !!audio,
+    total: Math.ceil(total / SEG),
+    current: 0,
+    stage: 'queued',
+    status: 'running',
+    output: null,
+    error: null,
+    warning: null,
+    startedAt: Date.now(),
+  };
+  currentJob = job;
+  runChain(job);
 
-  try {
-    for (let i = 0; i < segments; i++) {
-      const segDur = (i === segments - 1) ? (total - i * SEG) : SEG;
-      const workflow = JSON.parse(fs.readFileSync(path.join(WORKFLOWS_DIR, 'scail-animation.api.json'), 'utf8'));
+  res.json({ ok: true, jobId: job.id, segments: job.total });
+});
 
-      workflow['113'].inputs.video = video;
-      workflow['113'].inputs.skip_first_frames = i * SEG * FPS;
-      workflow['58'].inputs.image = image;
-      workflow['126'].inputs.value = segDur;
-      if (prompt?.trim()) workflow['6'].inputs.text = prompt.trim();
-      workflow['3'].inputs.seed = baseSeed;
-      workflow['49'].inputs.filename_prefix = `${date}/mocap/mocap-${batch}-seg${String(i + 1).padStart(2, '0')}`;
+function publicJob(j) {
+  if (!j) return null;
+  const { id, batch, status, stage, current, total, output, error, warning, audio } = j;
+  return { id, batch, status, stage, current, total, output, error, warning, audio };
+}
 
-      const result = await comfyPost(url, '/api/prompt', { prompt: workflow });
-      promptIds.push(result.prompt_id);
-    }
-    res.json({ ok: true, segments, promptIds });
-  } catch (err) {
-    res.status(500).json({ error: `ComfyUI submit failed: ${err.message}` });
-  }
+router.get('/api/comfyui/mocap/status', (req, res) => {
+  res.json({ job: publicJob(currentJob || lastJob) });
 });
 
 const VIDEO_DIRECTION_SYSTEM = `You are a prompt engineer for OpenOppAI - a short-form AI video content page that animates photorealistic images using LTX 2.3.

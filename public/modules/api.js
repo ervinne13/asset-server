@@ -50,6 +50,7 @@ export const api = {
   postProcessSkin: body => api.post('/api/comfyui/post-process-skin', body),
   ltxI2v: body => api.post('/api/comfyui/ltx-i2v', body),
   mocap: body => api.post('/api/comfyui/mocap', body),
+  mocapStatus: () => api.get('/api/comfyui/mocap/status'),
   creativeVideo: filePath => api.post('/api/comfyui/creative-video', { filePath }),
   comfyQueue: () => api.get('/api/comfyui/queue'),
   comfyCancel: promptId => api.post('/api/comfyui/cancel', { promptId }),

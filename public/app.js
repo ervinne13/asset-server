@@ -18,6 +18,7 @@ import './modules/trash.js';
 import './modules/keyboard.js';
 import './modules/comfyui-status.js';
 import './modules/claude-status.js';
+import './modules/mocap-status.js';
 import { openZitPage, closeZitPage } from './modules/zit.js';
 import { openQwenPage, closeQwenPage } from './modules/qwen-i2i.js';
 import { openQwenPosePage, closeQwenPosePage } from './modules/qwen-pose.js';

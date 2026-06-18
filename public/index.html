@@ -734,7 +734,7 @@
         <div class="zit-section">
           <label class="gen-label" for="mc-duration">Total Duration (seconds)</label>
           <input id="mc-duration" type="number" class="gen-seed-input" value="5" min="1" step="1" />
-          <small style="color:var(--sl-color-neutral-500)">Split into 5s jobs — e.g. 12s queues 3 jobs (5 + 5 + 2). Keep within the reference video's length.</small>
+          <small style="color:var(--sl-color-neutral-500)">Rendered as chained 5s segments (e.g. 12s → 5 + 5 + 2), each continuing from the previous one, then auto-joined into a single clip. Runs one segment at a time. Keep within the reference video's length.</small>
         </div>
 
         <!-- Prompt -->
@@ -743,11 +743,16 @@
           <textarea id="mc-prompt" class="gen-textarea gen-textarea-sm" rows="3" placeholder="Leave blank to use workflow default"></textarea>
         </div>
 
+        <!-- Audio -->
+        <div class="zit-section">
+          <sl-checkbox id="mc-audio" checked>Copy audio from reference video</sl-checkbox>
+        </div>
+
         <!-- Advanced options -->
         <details class="gen-advanced">
           <summary>Advanced options</summary>
           <div class="gen-advanced-body">
-            <label class="gen-label">Seed <small>(blank = random, shared across all jobs)</small></label>
+            <label class="gen-label">Seed <small>(blank = random, shared across all segments)</small></label>
             <input id="mc-seed" type="number" class="gen-seed-input" placeholder="Random" min="0" />
           </div>
         </details>
@@ -756,6 +761,16 @@
         <sl-button variant="primary" id="btn-mc-submit" size="large" class="zit-submit-btn">
           <sl-icon slot="prefix" name="person-arms-up"></sl-icon>Generate
         </sl-button>
+
+        <!-- Progress (background job) -->
+        <div id="mc-progress" class="mc-progress" style="display:none">
+          <div class="mc-progress-head">
+            <sl-spinner id="mc-progress-spinner"></sl-spinner>
+            <span id="mc-progress-stage" class="mc-progress-stage">Starting…</span>
+          </div>
+          <div id="mc-progress-detail" class="mc-progress-detail"></div>
+          <div class="mc-progress-hint">This runs on the server — you can close this page or the browser; the clip will appear in staging when done.</div>
+        </div>
 
       </div>
     </div>
