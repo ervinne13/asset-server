@@ -10,18 +10,18 @@ let lastJob = null;
 
 // ── Slots ──────────────────────────────────────────────────────────────────────
 
-$('mc-video-slot').addEventListener('click', () => {
+$('mc2-video-slot').addEventListener('click', () => {
   openImagePicker({
     kind: 'video',
-    onSelect: info => { videoInfo = info; updateSlotUI('mc-video-slot', info); },
-    onClear: () => { videoInfo = null; updateSlotUI('mc-video-slot', null); },
+    onSelect: info => { videoInfo = info; updateSlotUI('mc2-video-slot', info); },
+    onClear: () => { videoInfo = null; updateSlotUI('mc2-video-slot', null); },
   });
 });
 
-$('mc-img-slot').addEventListener('click', () => {
+$('mc2-img-slot').addEventListener('click', () => {
   openImagePicker({
-    onSelect: info => { imageInfo = info; updateSlotUI('mc-img-slot', info); },
-    onClear: () => { imageInfo = null; updateSlotUI('mc-img-slot', null); },
+    onSelect: info => { imageInfo = info; updateSlotUI('mc2-img-slot', info); },
+    onClear: () => { imageInfo = null; updateSlotUI('mc2-img-slot', null); },
   });
 });
 
@@ -32,7 +32,8 @@ function stageText(job) {
   switch (job.stage) {
     case 'queued':        return 'Starting…';
     case 'generating':    return `Rendering ${seg}…`;
-    case 'extracting':    return `Extracting last frame (${seg})…`;
+    case 'trimming':      return `Trimming overlap frames (${seg})…`;
+    case 'uploading':     return `Uploading segment to ComfyUI (${seg})…`;
     case 'joining':       return `Joining ${job.total} segments…`;
     case 'joining-audio': return `Joining ${job.total} segments + adding audio…`;
     case 'done':          return `✓ Done — ${job.output ? job.output.split('/').pop() : 'finished'}`;
@@ -66,12 +67,12 @@ function renderLog(job) {
     });
   }
 
-  $('mc-log').innerHTML = lines
+  $('mc2-log').innerHTML = lines
     .map(l => `<div class="mc-log-entry${l.current ? ' mc-log-entry-current' : ''}">${l.text}</div>`)
     .join('');
 
   const remaining = job.total - logs.length;
-  const etaEl = $('mc-eta');
+  const etaEl = $('mc2-eta');
   if (remaining > 0 && job.status === 'running') {
     const avgMs = logs.length > 0
       ? logs.reduce((sum, e) => sum + e.durationMs, 0) / logs.length
@@ -86,13 +87,13 @@ function renderLog(job) {
 }
 
 function renderQueue(queue, avgMs = null) {
-  const details = $('mc-queue-details');
+  const details = $('mc2-queue-details');
   if (!queue || queue.length === 0) {
     details.style.display = 'none';
     return;
   }
   details.style.display = '';
-  $('mc-queue-items').innerHTML = queue.map((entry, i) => {
+  $('mc2-queue-items').innerHTML = queue.map((entry, i) => {
     const name = (entry.video || '').split('/').pop() || 'unknown';
     const etaStr = avgMs ? ` · ~${formatDuration(entry.total * avgMs)}` : '';
     return `<div class="mc-queue-item">${i + 1}. ${entry.total} seg · ${name}${etaStr}</div>`;
@@ -101,8 +102,8 @@ function renderQueue(queue, avgMs = null) {
 
 function applyJob(job, queue = []) {
   lastJob = job;
-  const progress = $('mc-progress');
-  const submit = $('btn-mc-submit');
+  const progress = $('mc2-progress');
+  const submit = $('btn-mc2-submit');
 
   if (!job) {
     progress.style.display = 'none';
@@ -114,16 +115,16 @@ function applyJob(job, queue = []) {
   const running = job.status === 'running';
   progress.style.display = '';
   submit.style.display = '';
-  $('mc-progress-spinner').style.display = running ? '' : 'none';
+  $('mc2-progress-spinner').style.display = running ? '' : 'none';
 
   if (job.status === 'error') {
-    $('mc-progress-stage').textContent = `✕ ${job.error || 'Failed'}`;
-    $('mc-progress-detail').textContent = 'Raw segments were kept — you can join them manually.';
+    $('mc2-progress-stage').textContent = `✕ ${job.error || 'Failed'}`;
+    $('mc2-progress-detail').textContent = 'Raw segments were kept — you can join them manually.';
   } else {
-    $('mc-progress-stage').textContent = stageText(job);
+    $('mc2-progress-stage').textContent = stageText(job);
     const audioNote = job.warning || (job.audio ? 'Audio: from reference video' : 'Audio: none');
     const queueNote = queue.length > 0 ? ` · ${queue.length} more in queue` : '';
-    $('mc-progress-detail').textContent = audioNote + queueNote;
+    $('mc2-progress-detail').textContent = audioNote + queueNote;
   }
 
   renderLog(job);
@@ -137,7 +138,7 @@ function applyJob(job, queue = []) {
 
 async function poll() {
   try {
-    const { job, queue } = await api.mocapStatus();
+    const { job, queue } = await api.mocap2Status();
     applyJob(job, queue);
   } catch { /* transient */ }
 }
@@ -158,19 +159,19 @@ function stopPolling() {
 
 // ── Open / close ──────────────────────────────────────────────────────────────
 
-export function openMotionCapturePage() {
-  $('motion-capture-status').textContent = '';
-  $('btn-mc-submit').loading = false;
+export function openMotionCapture2Page() {
+  $('motion-capture2-status').textContent = '';
+  $('btn-mc2-submit').loading = false;
   videoInfo = null;
   imageInfo = null;
-  updateSlotUI('mc-video-slot', null);
-  updateSlotUI('mc-img-slot', null);
-  $('motion-capture-page').style.display = 'flex';
-  $('mc-progress').style.display = 'none';
-  $('mc-log').innerHTML = '';
-  $('mc-eta').textContent = '';
-  $('btn-mc-submit').style.display = '';
-  api.mocapStatus().then(({ job, queue }) => {
+  updateSlotUI('mc2-video-slot', null);
+  updateSlotUI('mc2-img-slot', null);
+  $('motion-capture2-page').style.display = 'flex';
+  $('mc2-progress').style.display = 'none';
+  $('mc2-log').innerHTML = '';
+  $('mc2-eta').textContent = '';
+  $('btn-mc2-submit').style.display = '';
+  api.mocap2Status().then(({ job, queue }) => {
     if (job && (job.status === 'running' || job.status === 'done' || job.status === 'error')) {
       applyJob(job, queue);
       if (job.status === 'running') startPolling();
@@ -178,59 +179,64 @@ export function openMotionCapturePage() {
   }).catch(() => {});
 }
 
-export function closeMotionCapturePage() {
-  $('motion-capture-page').style.display = 'none';
+export function closeMotionCapture2Page() {
+  $('motion-capture2-page').style.display = 'none';
   stopPolling();
 }
 
-$('btn-motion-capture').addEventListener('click', e => {
+$('btn-motion-capture2').addEventListener('click', e => {
   e.preventDefault();
-  history.pushState({ page: 'motion-capture' }, '', '/motion-capture');
-  openMotionCapturePage();
+  history.pushState({ page: 'motion-capture2' }, '', '/motion-capture2');
+  openMotionCapture2Page();
 });
 
-$('motion-capture-back').addEventListener('click', () => history.back());
+$('motion-capture2-back').addEventListener('click', () => history.back());
+
+// ── Duration toggle ───────────────────────────────────────────────────────────
+
+$('mc2-full-duration').addEventListener('sl-change', e => {
+  $('mc2-duration-row').style.display = e.target.checked ? 'none' : '';
+});
 
 // ── Generate ──────────────────────────────────────────────────────────────────
 
-$('mc-full-duration').addEventListener('sl-change', e => {
-  $('mc-duration-row').style.display = e.target.checked ? 'none' : '';
-});
-
-$('btn-mc-submit').addEventListener('click', async () => {
+$('btn-mc2-submit').addEventListener('click', async () => {
   if (!videoInfo) { toast('Select a reference video', 'warning'); return; }
   if (!imageInfo) { toast('Select a reference image', 'warning'); return; }
 
-  const fullDuration = $('mc-full-duration').checked;
+  const fullDuration = $('mc2-full-duration').checked;
   let totalDuration;
   if (!fullDuration) {
-    totalDuration = parseInt($('mc-duration').value);
+    totalDuration = parseInt($('mc2-duration').value);
     if (!totalDuration || totalDuration < 1) { toast('Enter a total duration (seconds)', 'warning'); return; }
   }
 
-  const startAt = parseInt($('mc-start-at').value) || 0;
-  const prompt = $('mc-prompt').value.trim() || undefined;
-  const seedVal = $('mc-seed').value.trim();
+  const startAt = parseInt($('mc2-start-at').value) || 0;
+  const fps = parseInt($('mc2-fps').value) || 16;
+  const prompt = $('mc2-prompt').value.trim() || undefined;
+  const seedVal = $('mc2-seed').value.trim();
   const seed = seedVal ? parseInt(seedVal) : undefined;
-  const audio = $('mc-audio').checked;
-  const forceSingle = $('mc-force-single').checked;
+  const audio = $('mc2-audio').checked;
+  const segDurVal = parseInt($('mc2-segment-duration').value);
+  const segmentDuration = (segDurVal && segDurVal >= 1) ? segDurVal : 3;
 
-  const btn = $('btn-mc-submit');
+  const btn = $('btn-mc2-submit');
   btn.loading = true;
-  $('motion-capture-status').textContent = 'Submitting…';
+  $('motion-capture2-status').textContent = 'Submitting…';
 
   try {
-    const submitResult = await api.mocap({
+    const submitResult = await api.mocap2({
       video: videoInfo.comfyFilename,
       image: imageInfo.comfyFilename,
       prompt,
       totalDuration,
+      fps,
       startAt: startAt || undefined,
+      segmentDuration,
       seed,
       audio,
-      forceSingle,
     });
-    $('motion-capture-status').textContent = '';
+    $('motion-capture2-status').textContent = '';
     if (submitResult.queued) {
       toast(`Queued at position ${submitResult.position} — will start automatically`);
     } else {
@@ -238,7 +244,7 @@ $('btn-mc-submit').addEventListener('click', async () => {
     }
     startPolling();
   } catch (err) {
-    $('motion-capture-status').textContent = '';
+    $('motion-capture2-status').textContent = '';
     toast(`Failed: ${err.message}`, 'danger');
   } finally {
     btn.loading = false;

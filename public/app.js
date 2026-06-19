@@ -25,6 +25,7 @@ import { openQwenPosePage, closeQwenPosePage } from './modules/qwen-pose.js';
 import { openPostProcessSkinPage, closePostProcessSkinPage } from './modules/post-process-skin.js';
 import { openLtxPage, closeLtxPage } from './modules/ltx-i2v.js';
 import { openMotionCapturePage, closeMotionCapturePage } from './modules/motion-capture.js';
+import { openMotionCapture2Page, closeMotionCapture2Page } from './modules/motion-capture2.js';
 import { openQueuePage, closeQueuePage } from './modules/comfyui-queue.js';
 import { openClaudePage, closeClaudePage } from './modules/claude-page.js';
 import { openContentFarmerPage, closeContentFarmerPage } from './modules/content-farmer.js';
@@ -156,6 +157,7 @@ window.addEventListener('popstate', e => {
   closePostProcessSkinPage();
   closeLtxPage();
   closeMotionCapturePage();
+  closeMotionCapture2Page();
   closeQueuePage();
   closeClaudePage();
   closeContentFarmerPage();
@@ -166,6 +168,7 @@ window.addEventListener('popstate', e => {
   else if (e.state?.page === 'post-process-skin') openPostProcessSkinPage();
   else if (e.state?.page === 'ltx') openLtxPage();
   else if (e.state?.page === 'motion-capture') openMotionCapturePage();
+  else if (e.state?.page === 'motion-capture2') openMotionCapture2Page();
   else if (e.state?.page === 'comfy-queue') openQueuePage();
   else if (e.state?.page === 'claude') openClaudePage();
   else if (e.state?.page === 'content-farmer') openContentFarmerPage();
@@ -219,6 +222,9 @@ window.addEventListener('popstate', e => {
   } else if (origPathname === '/motion-capture') {
     history.pushState({ page: 'motion-capture' }, '', '/motion-capture');
     openMotionCapturePage();
+  } else if (origPathname === '/motion-capture2') {
+    history.pushState({ page: 'motion-capture2' }, '', '/motion-capture2');
+    openMotionCapture2Page();
   } else if (origPathname === '/post-process-skin') {
     history.pushState({ page: 'post-process-skin' }, '', '/post-process-skin');
     openPostProcessSkinPage();

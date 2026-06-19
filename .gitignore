@@ -6,3 +6,6 @@ data/
 VERSION
 thumbnails/*
 !thumbnails/.gitkeep
+server-queue.json
+server-state.json
+server-current-job.json

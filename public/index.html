@@ -93,6 +93,10 @@
         <sl-icon name="person-arms-up"></sl-icon>
         Motion Cap
       </a>
+      <a class="sidebar-item" id="btn-motion-capture2" href="/motion-capture2">
+        <sl-icon name="person-walking"></sl-icon>
+        Motion Cap 2
+      </a>
       <a class="sidebar-item" id="btn-post-process-skin" href="/post-process-skin">
         <sl-icon name="stars"></sl-icon>
         Skin PP
@@ -463,6 +467,7 @@
         <div id="img-picker-placeholder" class="img-picker-placeholder">
           <sl-icon name="image"></sl-icon>
           <span>Select a file to preview</span>
+          <span class="img-picker-placeholder-sub">or drag a file here to upload</span>
         </div>
       </div>
     </div>
@@ -713,34 +718,26 @@
     <div class="zit-content">
       <div class="zit-inner">
 
-        <!-- Video slot -->
-        <div class="zit-section">
-          <div class="zit-section-header">
-            <sl-icon name="film"></sl-icon>
-            <span>Reference Video <small style="font-weight:normal;text-transform:none;letter-spacing:0">(motion source — click to select)</small></span>
-          </div>
-          <div class="qi-image-slots">
-            <div class="qi-img-slot-wrap">
-              <div id="mc-video-slot" class="qi-img-slot">
-                <sl-icon name="film"></sl-icon>
-                <span>Click to select</span>
-              </div>
+        <!-- Video + Image slots — side by side, portrait -->
+        <div class="mc-slots-row">
+          <div class="mc-slot-col">
+            <div class="zit-section-header">
+              <sl-icon name="film"></sl-icon>
+              <span>Reference Video <small style="font-weight:normal;text-transform:none;letter-spacing:0">(motion source)</small></span>
+            </div>
+            <div id="mc-video-slot" class="qi-img-slot mc-portrait-slot">
+              <sl-icon name="film"></sl-icon>
+              <span>Click to select</span>
             </div>
           </div>
-        </div>
-
-        <!-- Image slot -->
-        <div class="zit-section">
-          <div class="zit-section-header">
-            <sl-icon name="image"></sl-icon>
-            <span>Reference Image <small style="font-weight:normal;text-transform:none;letter-spacing:0">(subject to animate — click to select)</small></span>
-          </div>
-          <div class="qi-image-slots">
-            <div class="qi-img-slot-wrap">
-              <div id="mc-img-slot" class="qi-img-slot">
-                <sl-icon name="image"></sl-icon>
-                <span>Click to select</span>
-              </div>
+          <div class="mc-slot-col">
+            <div class="zit-section-header">
+              <sl-icon name="image"></sl-icon>
+              <span>Reference Image <small style="font-weight:normal;text-transform:none;letter-spacing:0">(subject to animate)</small></span>
+            </div>
+            <div id="mc-img-slot" class="qi-img-slot mc-portrait-slot">
+              <sl-icon name="image"></sl-icon>
+              <span>Click to select</span>
             </div>
           </div>
         </div>
@@ -748,9 +745,15 @@
         <!-- Duration -->
         <div class="zit-section">
           <sl-checkbox id="mc-full-duration" checked>Full Reference Video Duration</sl-checkbox>
-          <div id="mc-duration-row" style="display:none; margin-top:10px">
-            <label class="gen-label" for="mc-duration">Total Duration (seconds)</label>
-            <input id="mc-duration" type="number" class="gen-seed-input" value="5" min="1" step="1" />
+          <div class="mc-duration-inputs" style="margin-top:10px">
+            <div>
+              <label class="gen-label" for="mc-start-at">Start at (seconds)</label>
+              <input id="mc-start-at" type="number" class="gen-seed-input" value="0" min="0" step="1" />
+            </div>
+            <div id="mc-duration-row" style="display:none">
+              <label class="gen-label" for="mc-duration">Total Duration (seconds)</label>
+              <input id="mc-duration" type="number" class="gen-seed-input" value="5" min="1" step="1" />
+            </div>
           </div>
           <small style="color:var(--sl-color-neutral-500);margin-top:6px;display:block">Rendered as chained 5s segments, each continuing from the previous one, then auto-joined into a single clip. Runs one segment at a time.</small>
         </div>
@@ -790,6 +793,112 @@
           <div id="mc-progress-detail" class="mc-progress-detail"></div>
           <div id="mc-log" class="mc-log"></div>
           <div id="mc-eta" class="mc-eta"></div>
+          <details id="mc-queue-details" class="mc-queue-details" style="display:none">
+            <summary class="mc-queue-summary">View full queue</summary>
+            <div id="mc-queue-items" class="mc-queue-items"></div>
+          </details>
+          <div class="mc-progress-hint">This runs on the server — close this page freely and come back anytime to check progress.</div>
+        </div>
+
+      </div>
+    </div>
+  </div>
+
+  <!-- ── Motion Capture 2 Page (full-screen overlay) ── -->
+  <div id="motion-capture2-page" class="zit-page" style="display:none">
+    <div class="gen-header">
+      <button id="motion-capture2-back" class="gen-back-btn" title="Back">
+        <sl-icon name="arrow-left"></sl-icon>
+      </button>
+      <span class="gen-title">Motion Cap 2</span>
+      <span id="motion-capture2-status" class="gen-status"></span>
+    </div>
+    <div class="zit-content">
+      <div class="zit-inner">
+
+        <!-- Video + Image slots — side by side, portrait -->
+        <div class="mc-slots-row">
+          <div class="mc-slot-col">
+            <div class="zit-section-header">
+              <sl-icon name="film"></sl-icon>
+              <span>Reference Video <small style="font-weight:normal;text-transform:none;letter-spacing:0">(motion source)</small></span>
+            </div>
+            <div id="mc2-video-slot" class="qi-img-slot mc-portrait-slot">
+              <sl-icon name="film"></sl-icon>
+              <span>Click to select</span>
+            </div>
+          </div>
+          <div class="mc-slot-col">
+            <div class="zit-section-header">
+              <sl-icon name="image"></sl-icon>
+              <span>Base Image <small style="font-weight:normal;text-transform:none;letter-spacing:0">(subject to animate)</small></span>
+            </div>
+            <div id="mc2-img-slot" class="qi-img-slot mc-portrait-slot">
+              <sl-icon name="image"></sl-icon>
+              <span>Click to select</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Duration -->
+        <div class="zit-section">
+          <sl-checkbox id="mc2-full-duration" checked>Full Reference Video Duration</sl-checkbox>
+          <div class="mc-duration-inputs" style="margin-top:10px">
+            <div>
+              <label class="gen-label" for="mc2-start-at">Start at (seconds)</label>
+              <input id="mc2-start-at" type="number" class="gen-seed-input" value="0" min="0" step="1" />
+            </div>
+            <div id="mc2-duration-row" style="display:none">
+              <label class="gen-label" for="mc2-duration">Total Duration (seconds)</label>
+              <input id="mc2-duration" type="number" class="gen-seed-input" value="6" min="1" step="1" />
+            </div>
+          </div>
+          <small style="color:var(--sl-color-neutral-500);margin-top:6px;display:block">Renders base segment first, then chained extended segments. Each segment uses the previous output for seamless continuity.</small>
+        </div>
+
+        <!-- FPS -->
+        <div class="zit-section">
+          <label class="gen-label" for="mc2-fps">FPS</label>
+          <input id="mc2-fps" type="number" class="gen-seed-input" value="16" min="1" max="60" step="1" />
+        </div>
+
+        <!-- Audio -->
+        <div class="zit-section">
+          <sl-checkbox id="mc2-audio" checked>Copy audio from reference video</sl-checkbox>
+        </div>
+
+        <!-- Advanced options -->
+        <details class="gen-advanced">
+          <summary>Advanced options</summary>
+          <div class="gen-advanced-body">
+            <label class="gen-label" for="mc2-prompt">Prompt <small>(optional — low influence)</small></label>
+            <textarea id="mc2-prompt" class="gen-textarea gen-textarea-sm" rows="3" placeholder="Leave blank to use workflow default"></textarea>
+            <label class="gen-label" style="margin-top:10px">Seed <small>(blank = random, shared across all segments)</small></label>
+            <input id="mc2-seed" type="number" class="gen-seed-input" placeholder="Random" min="0" />
+            <label class="gen-label" style="margin-top:10px" for="mc2-segment-duration">Segment Duration (seconds)</label>
+            <input id="mc2-segment-duration" type="number" class="gen-seed-input" value="3" min="1" step="1" />
+            <small style="color:var(--sl-color-neutral-500);margin-top:4px;display:block">Duration per segment. Start at advances by this amount each segment.</small>
+          </div>
+        </details>
+
+        <!-- Submit -->
+        <sl-button variant="primary" id="btn-mc2-submit" size="large" class="zit-submit-btn">
+          <sl-icon slot="prefix" name="person-walking"></sl-icon>Generate
+        </sl-button>
+
+        <!-- Progress (background job) -->
+        <div id="mc2-progress" class="mc-progress" style="display:none">
+          <div class="mc-progress-head">
+            <sl-spinner id="mc2-progress-spinner"></sl-spinner>
+            <span id="mc2-progress-stage" class="mc-progress-stage">Starting…</span>
+          </div>
+          <div id="mc2-progress-detail" class="mc-progress-detail"></div>
+          <div id="mc2-log" class="mc-log"></div>
+          <div id="mc2-eta" class="mc-eta"></div>
+          <details id="mc2-queue-details" class="mc-queue-details" style="display:none">
+            <summary class="mc-queue-summary">View full queue</summary>
+            <div id="mc2-queue-items" class="mc-queue-items"></div>
+          </details>
           <div class="mc-progress-hint">This runs on the server — close this page freely and come back anytime to check progress.</div>
         </div>
 

@@ -151,6 +151,37 @@ $('img-picker-file').addEventListener('change', e => {
   setPickerFile(file);
 });
 
+// Drag-and-drop onto the preview panel.
+const previewPanel = document.querySelector('.img-picker-preview-panel');
+let dragCounter = 0;
+
+previewPanel.addEventListener('dragenter', e => {
+  e.preventDefault();
+  if (!pickerDialog.open) return;
+  dragCounter++;
+  previewPanel.classList.add('drag-over');
+});
+
+previewPanel.addEventListener('dragleave', () => {
+  if (--dragCounter <= 0) { dragCounter = 0; previewPanel.classList.remove('drag-over'); }
+});
+
+previewPanel.addEventListener('dragover', e => { e.preventDefault(); });
+
+previewPanel.addEventListener('drop', e => {
+  e.preventDefault();
+  dragCounter = 0;
+  previewPanel.classList.remove('drag-over');
+  if (!pickerDialog.open) return;
+  const file = e.dataTransfer.files[0];
+  if (!file) return;
+  const isVideo = file.type.startsWith('video/');
+  const isImage = file.type.startsWith('image/');
+  if (pickerKind === 'video' && !isVideo) { toast('Select a video file', 'warning'); return; }
+  if (pickerKind === 'image' && !isImage) { toast('Select an image file', 'warning'); return; }
+  setPickerFile(file);
+});
+
 // Paste a copied image straight into the picker (Cmd/Ctrl+V) while it's open.
 document.addEventListener('paste', e => {
   if (!pickerDialog.open || pickerKind !== 'image') return;
