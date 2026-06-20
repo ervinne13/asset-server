@@ -173,7 +173,7 @@ function renderLive() {
     liveQueue.map((e, i) => queueEntryHTML(e, i + 1)).join('');
   $('mc-logs-running').innerHTML = html;
   $('mc-logs-drawer-running').innerHTML = html;
-  $('btn-mc-logs').loading = !!(liveJob && liveJob.status === 'running');
+  $('btn-mc-logs').classList.toggle('mc-logs-running', !!(liveJob && liveJob.status === 'running'));
 }
 
 function renderHistory(entries, liveId) {

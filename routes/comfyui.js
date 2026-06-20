@@ -5,7 +5,7 @@ const path = require('path');
 const { execFileSync, execFile } = require('child_process');
 const { loadConfig, isAllowedPath } = require('../lib/config');
 const { comfyGet, comfyPost, readPngTextChunks, extractPrompts, extractSeed } = require('../lib/comfyui');
-const { extractLastFrame, probeDuration, probeFps, joinVideos, trimFirstNFrames } = require('../lib/video');
+const { extractLastFrame, probeDuration, probeHasAudio, probeFps, joinVideos, trimFirstNFrames } = require('../lib/video');
 const { pollAndSaveImage } = require('./saved-prompts');
 
 const router = express.Router();
@@ -431,16 +431,24 @@ async function runChain(job) {
   if (!job.joinPaths) job.joinPaths = [];
   if (!job.trimmedPaths) job.trimmedPaths = [];
 
+  const resumeFrom = job.segmentLogs ? job.segmentLogs.length : 0;
+
   persistCurrentJob(job);
 
   try {
     let prevVideoComfyName = null;
 
-    for (let i = 0; i < job.total; i++) {
+    if (resumeFrom > 0) {
+      // Re-upload last completed raw so the next extended segment can reference it
+      prevVideoComfyName = uploadVideoToComfy(url, job.rawPaths[resumeFrom - 1]);
+    }
+
+    for (let i = resumeFrom; i < job.total; i++) {
       const startFrame = (job.startFrame || 0) + i * frameCount;
       job.current = i + 1;
       job.segmentStartedAt = Date.now();
       job.stage = 'generating';
+      persistCurrentJob(job);
 
       const prefix = `${dirPrefix}/mocap-${job.batch}-seg${String(i + 1).padStart(2, '0')}`;
 
@@ -486,8 +494,13 @@ async function runChain(job) {
       const inputDir = comfyInputDir(config);
       const candidate = inputDir ? path.join(inputDir, job.video) : null;
       if (candidate && fs.existsSync(candidate)) {
-        audioPath = candidate;
-        job.stage = 'joining-audio';
+        const hasAudio = await probeHasAudio(candidate).catch(() => false);
+        if (hasAudio) {
+          audioPath = candidate;
+          job.stage = 'joining-audio';
+        } else {
+          job.warning = 'reference video has no audio track — output is silent';
+        }
       } else {
         job.warning = 'reference video audio not found — output is silent';
       }
@@ -993,17 +1006,20 @@ router.post('/api/comfyui/post-process-skin', async (req, res) => {
   }
 });
 
-// On startup, resume any queued mocap jobs (interrupted jobs restart from scratch
-// since prevVideoComfyName state is lost).
+// On startup, resume any interrupted or queued mocap jobs.
 setTimeout(() => {
   if (currentJob) return;
   try {
     const interrupted = JSON.parse(fs.readFileSync(CURRENT_JOB_FILE, 'utf8'));
     if (interrupted?.id) {
-      console.log(`[mocap] interrupted job ${interrupted.id} found — marking as error (cannot resume mid-chain)`);
-      lastJob = { ...interrupted, status: 'error', error: 'Server restarted mid-chain — raws kept, restart job manually' };
-      writeJobToLog(lastJob);
-      clearCurrentJobFile();
+      const completedCount = interrupted.segmentLogs?.length || 0;
+      console.log(`[mocap] interrupted job ${interrupted.id} found — resuming from segment ${completedCount + 1}/${interrupted.total}`);
+      interrupted.status = 'running';
+      interrupted.stage = 'queued';
+      interrupted.error = null;
+      currentJob = interrupted;
+      runChain(currentJob).catch(err => console.error('[mocap] resume failed:', err.message));
+      return; // runChain's finally block handles dequeuing when done
     }
   } catch { /* no interrupted job file */ }
 

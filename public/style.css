@@ -1761,6 +1761,12 @@ sl-dialog {
   border-color: var(--sl-color-primary-600);
 }
 
+.gen-seed-input:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+  background: var(--sl-color-neutral-100);
+}
+
 .gen-footer {
   padding: 12px 14px;
   border-top: 1px solid var(--sl-color-neutral-200);
@@ -2530,6 +2536,14 @@ sl-dialog {
 @keyframes mc-pulse {
   0%, 100% { opacity: 1; }
   50% { opacity: 0.3; }
+}
+
+#btn-mc-logs.mc-logs-running::part(base) {
+  animation: mc-logs-ring 1.4s ease-in-out infinite;
+}
+@keyframes mc-logs-ring {
+  0%, 100% { box-shadow: 0 0 0 0px var(--sl-color-primary-400); }
+  50%       { box-shadow: 0 0 0 3px var(--sl-color-primary-300); }
 }
 
 .join-body {
