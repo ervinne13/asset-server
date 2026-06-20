@@ -15,8 +15,18 @@ let liveQueue = [];
 $('mc-video-slot').addEventListener('click', () => {
   openImagePicker({
     kind: 'video',
-    onSelect: info => { videoInfo = info; updateSlotUI('mc-video-slot', info); },
-    onClear: () => { videoInfo = null; updateSlotUI('mc-video-slot', null); },
+    onSelect: info => {
+      videoInfo = info;
+      updateSlotUI('mc-video-slot', info);
+      $('mc-use-video-fps').disabled = false;
+    },
+    onClear: () => {
+      videoInfo = null;
+      updateSlotUI('mc-video-slot', null);
+      $('mc-use-video-fps').checked = false;
+      $('mc-use-video-fps').disabled = true;
+      $('mc-fps').disabled = false;
+    },
   });
 });
 
@@ -27,7 +37,10 @@ $('mc-img-slot').addEventListener('click', () => {
   });
 });
 
-wireSlotDropZone('mc-video-slot', 'video', info => { videoInfo = info; });
+wireSlotDropZone('mc-video-slot', 'video', info => {
+  videoInfo = info;
+  $('mc-use-video-fps').disabled = false;
+});
 wireSlotDropZone('mc-img-slot', 'image', info => { imageInfo = info; });
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
@@ -264,9 +277,14 @@ $('mc-full-duration').addEventListener('sl-change', e => {
   $('mc-duration-row').style.display = e.target.checked ? 'none' : '';
 });
 
+$('mc-use-video-fps').addEventListener('sl-change', e => {
+  $('mc-fps').disabled = e.target.checked;
+});
+
 // ── FPS → frame count sync ────────────────────────────────────────────────────
 
 $('mc-fps').addEventListener('change', () => {
+  if ($('mc-use-video-fps').checked) return;
   const fps = Math.max(1, parseInt($('mc-fps').value) || 16);
   $('mc-frame-count').value = Math.floor(5 * fps / 4) * 4 + 1;
 });
@@ -280,6 +298,9 @@ export function openMotionCapturePage() {
   imageInfo = null;
   updateSlotUI('mc-video-slot', null);
   updateSlotUI('mc-img-slot', null);
+  $('mc-use-video-fps').checked = false;
+  $('mc-use-video-fps').disabled = true;
+  $('mc-fps').disabled = false;
   $('motion-capture-page').style.display = 'flex';
   fetchLogs();
   api.mocapStatus().then(({ job, queue }) => {
@@ -309,7 +330,8 @@ $('btn-mc-submit').addEventListener('click', async () => {
   if (!videoInfo) { toast('Select a reference video', 'warning'); return; }
   if (!imageInfo) { toast('Select a reference image', 'warning'); return; }
 
-  const fps = parseInt($('mc-fps').value) || 24;
+  const useVideoFps = $('mc-use-video-fps').checked;
+  const fps = useVideoFps ? undefined : (parseInt($('mc-fps').value) || 24);
   const fullDuration = $('mc-full-duration').checked;
   let totalFrames;
   if (!fullDuration) {
@@ -337,6 +359,7 @@ $('btn-mc-submit').addEventListener('click', async () => {
       video: videoInfo.comfyFilename,
       image: imageInfo.comfyFilename,
       prompt, totalFrames, fps,
+      useVideoFps: useVideoFps || undefined,
       startFrame: startFrame || undefined,
       frameCount, seed, audio, replacementMode,
     });

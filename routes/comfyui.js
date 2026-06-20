@@ -5,7 +5,7 @@ const path = require('path');
 const { execFileSync, execFile } = require('child_process');
 const { loadConfig, isAllowedPath } = require('../lib/config');
 const { comfyGet, comfyPost, readPngTextChunks, extractPrompts, extractSeed } = require('../lib/comfyui');
-const { extractLastFrame, probeDuration, joinVideos, trimFirstNFrames } = require('../lib/video');
+const { extractLastFrame, probeDuration, probeFps, joinVideos, trimFirstNFrames } = require('../lib/video');
 const { pollAndSaveImage } = require('./saved-prompts');
 
 const router = express.Router();
@@ -548,14 +548,26 @@ async function runChain(job) {
 }
 
 router.post('/api/comfyui/mocap', async (req, res) => {
-  const { video, image, prompt, totalFrames: totalFramesRaw, fps: fpsRaw, startFrame: startFrameRaw, frameCount: frameCountRaw, seed, audio, replacementMode } = req.body;
+  const { video, image, prompt, totalFrames: totalFramesRaw, fps: fpsRaw, startFrame: startFrameRaw, frameCount: frameCountRaw, seed, audio, replacementMode, useVideoFps } = req.body;
   const startFrame = (startFrameRaw != null && !isNaN(startFrameRaw)) ? Math.max(0, Number(startFrameRaw)) : 0;
-  const fps = (fpsRaw != null && !isNaN(fpsRaw)) ? Math.max(1, Number(fpsRaw)) : 16;
   const frameCount = (frameCountRaw != null && !isNaN(frameCountRaw)) ? Math.max(1, Number(frameCountRaw)) : 81;
 
   if (!video) return res.status(400).json({ error: 'video required' });
   if (!image) return res.status(400).json({ error: 'image required' });
   if (queueLength() >= 10) return res.status(429).json({ error: 'Queue is full (max 10 jobs). Wait for some to finish.' });
+
+  let fps;
+  if (useVideoFps) {
+    const config = loadConfig();
+    const inputDir = comfyInputDir(config);
+    if (!inputDir) return res.status(400).json({ error: 'comfyInputDir not configured — cannot probe video FPS' });
+    const videoPath = path.join(inputDir, video);
+    const probedFps = await probeFps(videoPath).catch(() => null);
+    if (!probedFps) return res.status(400).json({ error: 'Could not probe video FPS — specify manually' });
+    fps = probedFps;
+  } else {
+    fps = (fpsRaw != null && !isNaN(fpsRaw)) ? Math.max(1, Number(fpsRaw)) : 16;
+  }
 
   let total;
   if (totalFramesRaw != null) {

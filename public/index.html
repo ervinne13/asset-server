@@ -763,8 +763,12 @@
 
           <!-- FPS -->
           <div class="zit-section">
-            <label class="gen-label" for="mc-fps">FPS</label>
-            <input id="mc-fps" type="number" class="gen-seed-input" value="24" min="1" max="60" step="1" />
+            <sl-checkbox id="mc-use-video-fps" disabled>Use original video's FPS</sl-checkbox>
+            <small style="color:var(--sl-color-neutral-500);margin-top:4px;display:block">Select a reference video first. Probed at submit time — shown in job details.</small>
+            <div style="margin-top:8px">
+              <label class="gen-label" for="mc-fps">FPS</label>
+              <input id="mc-fps" type="number" class="gen-seed-input" value="24" min="1" max="60" step="1" />
+            </div>
           </div>
 
           <!-- Audio -->
