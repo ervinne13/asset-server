@@ -51,6 +51,8 @@ export const api = {
   ltxI2v: body => api.post('/api/comfyui/ltx-i2v', body),
   mocap: body => api.post('/api/comfyui/mocap', body),
   mocapStatus: () => api.get('/api/comfyui/mocap/status'),
+  mocapLogs: (date) => api.get(`/api/comfyui/mocap/logs${date ? `?date=${date}` : ''}`),
+  mocapCancel: (jobId) => api.post('/api/comfyui/mocap/cancel', { jobId }),
   creativeVideo: filePath => api.post('/api/comfyui/creative-video', { filePath }),
   comfyQueue: () => api.get('/api/comfyui/queue'),
   comfyCancel: promptId => api.post('/api/comfyui/cancel', { promptId }),

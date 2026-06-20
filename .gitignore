@@ -9,3 +9,4 @@ thumbnails/*
 server-queue.json
 server-state.json
 server-current-job.json
+logs/

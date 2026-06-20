@@ -709,104 +709,116 @@
       <span class="gen-title">Motion Capture</span>
       <span id="motion-capture-status" class="gen-status"></span>
     </div>
-    <div class="zit-content">
-      <div class="zit-inner">
+    <div class="mc-body">
 
-        <!-- Video + Image slots — side by side, portrait -->
-        <div class="mc-slots-row">
-          <div class="mc-slot-col">
-            <div class="zit-section-header">
-              <sl-icon name="film"></sl-icon>
-              <span>Reference Video <small style="font-weight:normal;text-transform:none;letter-spacing:0">(motion source)</small></span>
-            </div>
-            <div id="mc-video-slot" class="qi-img-slot mc-portrait-slot">
-              <sl-icon name="film"></sl-icon>
-              <span>Click to select</span>
-            </div>
-          </div>
-          <div class="mc-slot-col">
-            <div class="zit-section-header">
-              <sl-icon name="image"></sl-icon>
-              <span>Base Image <small style="font-weight:normal;text-transform:none;letter-spacing:0">(subject to animate)</small></span>
-            </div>
-            <div id="mc-img-slot" class="qi-img-slot mc-portrait-slot">
-              <sl-icon name="image"></sl-icon>
-              <span>Click to select</span>
-            </div>
-          </div>
-        </div>
+      <!-- Form column -->
+      <div class="mc-form-col">
+        <div class="zit-inner">
 
-        <!-- Subject Replacement Mode -->
-        <div class="zit-section">
-          <sl-checkbox id="mc-replacement-mode">Subject Replacement Mode</sl-checkbox>
-          <small style="color:var(--sl-color-neutral-500);margin-top:4px;display:block">Replaces the subject in the reference video instead of capturing its motion.</small>
-        </div>
-
-        <!-- Duration -->
-        <div class="zit-section">
-          <sl-checkbox id="mc-full-duration" checked>Full Reference Video Duration</sl-checkbox>
-          <div class="mc-duration-inputs" style="margin-top:10px">
-            <div>
-              <label class="gen-label" for="mc-start-frame">Start Frame</label>
-              <input id="mc-start-frame" type="number" class="gen-seed-input" value="0" min="0" step="1" />
+          <!-- Video + Image slots — side by side, portrait -->
+          <div class="mc-slots-row">
+            <div class="mc-slot-col">
+              <div class="zit-section-header">
+                <sl-icon name="film"></sl-icon>
+                <span>Reference Video <small style="font-weight:normal;text-transform:none;letter-spacing:0">(motion source)</small></span>
+              </div>
+              <div id="mc-video-slot" class="qi-img-slot mc-portrait-slot">
+                <sl-icon name="film"></sl-icon>
+                <span>Click to select</span>
+              </div>
             </div>
-            <div id="mc-duration-row" style="display:none">
-              <label class="gen-label" for="mc-total-frames">Total Frames</label>
-              <input id="mc-total-frames" type="number" class="gen-seed-input" value="162" min="1" step="1" />
+            <div class="mc-slot-col">
+              <div class="zit-section-header">
+                <sl-icon name="image"></sl-icon>
+                <span>Base Image <small style="font-weight:normal;text-transform:none;letter-spacing:0">(subject to animate)</small></span>
+              </div>
+              <div id="mc-img-slot" class="qi-img-slot mc-portrait-slot">
+                <sl-icon name="image"></sl-icon>
+                <span>Click to select</span>
+              </div>
             </div>
           </div>
-          <small style="color:var(--sl-color-neutral-500);margin-top:6px;display:block">Renders base segment first, then chained extended segments. Each segment uses the previous output for seamless continuity.</small>
-        </div>
 
-        <!-- FPS -->
-        <div class="zit-section">
-          <label class="gen-label" for="mc-fps">FPS</label>
-          <input id="mc-fps" type="number" class="gen-seed-input" value="16" min="1" max="60" step="1" />
-        </div>
-
-        <!-- Audio -->
-        <div class="zit-section">
-          <sl-checkbox id="mc-audio" checked>Copy audio from reference video</sl-checkbox>
-        </div>
-
-        <!-- Advanced options -->
-        <details class="gen-advanced">
-          <summary>Advanced options</summary>
-          <div class="gen-advanced-body">
-            <label class="gen-label" for="mc-prompt">Prompt <small>(optional — low influence)</small></label>
-            <textarea id="mc-prompt" class="gen-textarea gen-textarea-sm" rows="3" placeholder="Leave blank to use workflow default"></textarea>
-            <label class="gen-label" style="margin-top:10px">Seed <small>(blank = random, shared across all segments)</small></label>
-            <input id="mc-seed" type="number" class="gen-seed-input" placeholder="Random" min="0" />
-            <label class="gen-label" style="margin-top:10px" for="mc-frame-count">Frame Count per Segment</label>
-            <input id="mc-frame-count" type="number" class="gen-seed-input" value="81" min="1" step="1" />
-            <small style="color:var(--sl-color-neutral-500);margin-top:4px;display:block">Frames per segment. Start frame advances by this amount each segment. Extended segments submit frameCount+5 to account for the 5 overlap frames.</small>
+          <!-- Subject Replacement Mode -->
+          <div class="zit-section">
+            <sl-checkbox id="mc-replacement-mode">Subject Replacement Mode</sl-checkbox>
+            <small style="color:var(--sl-color-neutral-500);margin-top:4px;display:block">Replaces the subject in the reference video instead of capturing its motion.</small>
           </div>
-        </details>
 
-        <!-- Submit -->
-        <sl-button variant="primary" id="btn-mc-submit" size="large" class="zit-submit-btn">
-          <sl-icon slot="prefix" name="person-walking"></sl-icon>Generate
-        </sl-button>
-
-        <!-- Progress (background job) -->
-        <div id="mc-progress" class="mc-progress" style="display:none">
-          <div class="mc-progress-head">
-            <sl-spinner id="mc-progress-spinner"></sl-spinner>
-            <span id="mc-progress-stage" class="mc-progress-stage">Starting…</span>
+          <!-- Duration -->
+          <div class="zit-section">
+            <sl-checkbox id="mc-full-duration" checked>Full Reference Video Duration</sl-checkbox>
+            <div class="mc-duration-inputs" style="margin-top:10px">
+              <div>
+                <label class="gen-label" for="mc-start-frame">Start Frame</label>
+                <input id="mc-start-frame" type="number" class="gen-seed-input" value="0" min="0" step="1" />
+              </div>
+              <div id="mc-duration-row" style="display:none">
+                <label class="gen-label" for="mc-total-frames">Total Frames</label>
+                <input id="mc-total-frames" type="number" class="gen-seed-input" value="162" min="1" step="1" />
+              </div>
+            </div>
+            <small style="color:var(--sl-color-neutral-500);margin-top:6px;display:block">Renders base segment first, then chained extended segments.</small>
           </div>
-          <div id="mc-progress-detail" class="mc-progress-detail"></div>
-          <div id="mc-log" class="mc-log"></div>
-          <div id="mc-eta" class="mc-eta"></div>
-          <details id="mc-queue-details" class="mc-queue-details" style="display:none">
-            <summary class="mc-queue-summary">View full queue</summary>
-            <div id="mc-queue-items" class="mc-queue-items"></div>
+
+          <!-- FPS -->
+          <div class="zit-section">
+            <label class="gen-label" for="mc-fps">FPS</label>
+            <input id="mc-fps" type="number" class="gen-seed-input" value="24" min="1" max="60" step="1" />
+          </div>
+
+          <!-- Audio -->
+          <div class="zit-section">
+            <sl-checkbox id="mc-audio" checked>Copy audio from reference video</sl-checkbox>
+          </div>
+
+          <!-- Advanced options -->
+          <details class="gen-advanced">
+            <summary>Advanced options</summary>
+            <div class="gen-advanced-body">
+              <label class="gen-label" for="mc-prompt">Prompt <small>(optional — low influence)</small></label>
+              <textarea id="mc-prompt" class="gen-textarea gen-textarea-sm" rows="3" placeholder="Leave blank to use workflow default"></textarea>
+              <label class="gen-label" style="margin-top:10px">Seed <small>(blank = random, shared across all segments)</small></label>
+              <input id="mc-seed" type="number" class="gen-seed-input" placeholder="Random" min="0" />
+              <label class="gen-label" style="margin-top:10px" for="mc-frame-count">Frame Count per Segment</label>
+              <input id="mc-frame-count" type="number" class="gen-seed-input" value="121" min="1" step="1" />
+              <small style="color:var(--sl-color-neutral-500);margin-top:4px;display:block">Frames per segment. Extended segments submit frameCount+5 for overlap frames.</small>
+            </div>
           </details>
-          <div class="mc-progress-hint">This runs on the server — close this page freely and come back anytime to check progress.</div>
-        </div>
 
+          <!-- Submit -->
+          <sl-button variant="primary" id="btn-mc-submit" size="large" class="zit-submit-btn">
+            <sl-icon slot="prefix" name="person-walking"></sl-icon>Generate
+          </sl-button>
+
+          <!-- Mobile: Logs button -->
+          <sl-button id="btn-mc-logs" variant="default" size="medium" class="mc-logs-mobile-btn">
+            <sl-icon slot="prefix" name="clock-history"></sl-icon>
+            Logs
+          </sl-button>
+
+        </div>
       </div>
+
+      <!-- Logs column (desktop always visible) -->
+      <div class="mc-logs-col">
+        <div class="mc-logs-col-header">
+          <span id="mc-logs-date-label" class="mc-logs-date-label"></span>
+          <small class="mc-logs-hint">Close this page freely — jobs run on the server.</small>
+        </div>
+        <div id="mc-logs-running"></div>
+        <div id="mc-logs-history"></div>
+      </div>
+
     </div>
   </div>
+
+  <!-- Mobile logs drawer -->
+  <sl-drawer id="mc-logs-drawer" placement="bottom" label="Logs" style="--size:85vh">
+    <div id="mc-logs-drawer-running"></div>
+    <div id="mc-logs-drawer-history"></div>
+    <sl-button slot="footer" id="btn-mc-logs-close" variant="default" style="width:100%">Close</sl-button>
+  </sl-drawer>
 
   <!-- ── Post Process Skin Page (full-screen overlay) ── -->
   <div id="post-process-skin-page" class="zit-page" style="display:none">

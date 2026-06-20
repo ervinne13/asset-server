@@ -314,6 +314,38 @@ async function waitForVideo(url, promptId, staging, timeoutMs = 45 * 60 * 1000) 
 
 const QUEUE_FILE = path.join(__dirname, '..', 'server-queue.json');
 const CURRENT_JOB_FILE = path.join(__dirname, '..', 'server-current-job.json');
+const LOGS_DIR = path.join(__dirname, '..', 'logs');
+
+function todayStr() {
+  return new Date().toISOString().slice(0, 10).replace(/-/g, '');
+}
+
+function readDayLog(dateStr) {
+  const p = path.join(LOGS_DIR, `motion-cap-${dateStr}.json`);
+  try { return JSON.parse(fs.readFileSync(p, 'utf8')); } catch { return []; }
+}
+
+function writeJobToLog(job) {
+  try {
+    fs.mkdirSync(LOGS_DIR, { recursive: true });
+    const dateStr = todayStr();
+    const entries = readDayLog(dateStr);
+    const idx = entries.findIndex(e => e.id === job.id);
+    const snap = {
+      id: job.id, batch: job.batch,
+      status: job.status, stage: job.stage,
+      current: job.current, total: job.total,
+      output: job.output, error: job.error, warning: job.warning,
+      startedAt: job.startedAt,
+      segmentLogs: [...(job.segmentLogs || [])],
+      segmentStartedAt: job.segmentStartedAt,
+    };
+    if (idx >= 0) entries[idx] = snap; else entries.push(snap);
+    fs.writeFileSync(path.join(LOGS_DIR, `motion-cap-${dateStr}.json`), JSON.stringify(entries, null, 2));
+  } catch (err) {
+    console.error('[mocap] log write failed:', err.message);
+  }
+}
 
 let currentJob = null;
 let lastJob = null;
@@ -334,6 +366,7 @@ function dequeueJob() {
 function queueLength() { return readQueue().length; }
 function persistCurrentJob(job) {
   try { fs.writeFileSync(CURRENT_JOB_FILE, JSON.stringify(job)); } catch (e) { console.error('[mocap] persist error:', e.message); }
+  writeJobToLog(job);
 }
 function clearCurrentJobFile() {
   try { fs.unlinkSync(CURRENT_JOB_FILE); } catch {}
@@ -480,7 +513,27 @@ async function runChain(job) {
     job.status = 'error';
     job.error = err.message;
     console.error(`[mocap] job ${job.id} failed:`, err.message);
+    // Move any partial raws to a cancelled/ subfolder to keep the main folder clean
+    const allPartials = [...(job.rawPaths || []), ...(job.trimmedPaths || [])];
+    if (allPartials.length > 0) {
+      const config = loadConfig();
+      const staging = config.roots?.staging;
+      if (staging) {
+        const cancelledDir = path.join(staging, `${job.batch.slice(0, 8)}/mocap/cancelled`);
+        try {
+          fs.mkdirSync(cancelledDir, { recursive: true });
+          for (const p of allPartials) {
+            if (fs.existsSync(p)) {
+              fs.renameSync(p, path.join(cancelledDir, path.basename(p)));
+            }
+          }
+        } catch (moveErr) {
+          console.error('[mocap] failed to move cancelled raws:', moveErr.message);
+        }
+      }
+    }
   } finally {
+    writeJobToLog(job);
     clearCurrentJobFile();
     lastJob = job;
     currentJob = null;
@@ -548,7 +601,7 @@ router.post('/api/comfyui/mocap', async (req, res) => {
     seed: job.seed, audio: job.audio, total: job.total, queuedAt: Date.now(),
   };
 
-  if (currentJob) {
+  if (currentJob || queueLength() > 0) {
     enqueueJob(entry);
     return res.json({ ok: true, jobId: job.id, segments: job.total, queued: true, position: queueLength() });
   }
@@ -566,6 +619,49 @@ function publicJob(j) {
 
 router.get('/api/comfyui/mocap/status', (req, res) => {
   res.json({ job: publicJob(currentJob || lastJob), queue: readQueue() });
+});
+
+router.post('/api/comfyui/mocap/cancel', async (req, res) => {
+  const { jobId } = req.body;
+  if (!jobId) return res.status(400).json({ error: 'jobId required' });
+
+  if (currentJob && currentJob.id === jobId) {
+    const config = loadConfig();
+    await comfyPost(comfyUrl(config), '/api/interrupt', {}).catch(() => {});
+    return res.json({ ok: true, action: 'interrupted' });
+  }
+
+  const q = readQueue();
+  const idx = q.findIndex(e => e.id === jobId);
+  if (idx >= 0) {
+    q.splice(idx, 1);
+    writeQueue(q);
+    return res.json({ ok: true, action: 'dequeued' });
+  }
+
+  res.status(404).json({ error: 'Job not found in running or queue' });
+});
+
+router.get('/api/comfyui/mocap/logs', (req, res) => {
+  const today = todayStr();
+  const reqDate = req.query.date;
+  let date = reqDate || today;
+  let entries = readDayLog(date);
+  if (!reqDate && entries.length === 0) {
+    try {
+      const files = fs.existsSync(LOGS_DIR)
+        ? fs.readdirSync(LOGS_DIR).filter(f => /^motion-cap-\d{8}\.json$/.test(f)).sort().reverse()
+        : [];
+      for (const f of files) {
+        const d = f.slice(11, 19);
+        if (d !== today) {
+          const prev = readDayLog(d);
+          if (prev.length > 0) { entries = prev; date = d; break; }
+        }
+      }
+    } catch {}
+  }
+  res.json({ entries: entries.slice().reverse(), date });
 });
 
 const VIDEO_DIRECTION_SYSTEM = `You are a prompt engineer for OpenOppAI - a short-form AI video content page that animates photorealistic images using LTX 2.3.
