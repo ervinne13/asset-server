@@ -32,15 +32,15 @@ wireSlotDropZone('mc-img-slot', 'image', info => { imageInfo = info; });
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
-function stageLabel(job) {
+function stageLabel(job, short = false) {
   const seg = `${job.current}/${job.total}`;
   switch (job.stage) {
     case 'queued':        return 'Starting…';
-    case 'generating':    return `Rendering ${seg}…`;
-    case 'trimming':      return `Trimming (${seg})…`;
-    case 'uploading':     return `Uploading (${seg})…`;
-    case 'joining':       return `Joining ${job.total} segments…`;
-    case 'joining-audio': return `Joining + audio…`;
+    case 'generating':    return short ? 'Rendering…' : `Rendering ${seg}…`;
+    case 'trimming':      return short ? 'Trimming…'  : `Trimming (${seg})…`;
+    case 'uploading':     return short ? 'Uploading…' : `Uploading (${seg})…`;
+    case 'joining':       return `Joining ${job.total} seg…`;
+    case 'joining-audio': return 'Joining + audio…';
     case 'done':          return 'Done';
     default:              return job.stage || 'Working…';
   }
@@ -68,11 +68,26 @@ function eta(job) {
   return Math.max(0, avg - elapsed) + (remaining - 1) * avg;
 }
 
-function entrySummary(job) {
-  if (job.status === 'error') return `${job.current}/${job.total} · Failed`;
-  if (job.status === 'done') return `${job.current}/${job.total} · Done`;
+function statusSpans(job) {
+  const seg = `${job.current}/${job.total}`;
+
+  if (job.status === 'error') return `<span>${seg} · Failed</span>`;
+  if (job.status === 'done')  return `<span>${seg} · Done</span>`;
+
   const etaMs = eta(job);
-  return `${job.current}/${job.total} · ${stageLabel(job)}${etaMs != null ? ` · ETA: ~${fmt(etaMs)}` : ''}`;
+  const etaStr = etaMs != null ? ` · ETA: ~${fmt(etaMs)}` : '';
+
+  const mobile  = `${seg} · ${stageLabel(job, true)}${etaStr}`;
+  let   desktop = `${seg} · ${stageLabel(job, false)}${etaStr}`;
+
+  if (job.status === 'running' && job.startedAt) {
+    const elapsed = Date.now() - job.startedAt;
+    desktop += ` · Elapsed: ${fmt(elapsed)}`;
+    if (etaMs != null) desktop += ` · Total: ~${fmt(elapsed + etaMs)}`;
+  }
+
+  return `<span class="mc-status-mobile">${mobile}</span>` +
+         `<span class="mc-status-desktop">${desktop}</span>`;
 }
 
 function entryDetailHTML(job) {
@@ -88,7 +103,22 @@ function entryDetailHTML(job) {
   if (job.warning) lines.push(`<div class="mc-seg-warning">⚠ ${job.warning}</div>`);
   if (job.error)   lines.push(`<div class="mc-seg-error">✕ ${job.error}</div>`);
   if (job.output)  lines.push(`<div class="mc-seg-output">→ ${job.output.split('/').pop()}</div>`);
-  return lines.join('');
+
+  const metaLines = [];
+  if (job.fps)        metaLines.push(`FPS: ${job.fps}`);
+  if (job.frameCount && job.fps && job.total) {
+    const secs = (job.total * job.frameCount / job.fps).toFixed(1);
+    metaLines.push(`Est Length: ${secs}s`);
+  }
+  if (job.replacementMode != null) {
+    metaLines.push(job.replacementMode ? 'Subject Replacement' : 'Motion Capture');
+  }
+
+  const metaHTML = metaLines.length
+    ? `<div class="mc-detail-meta">${metaLines.map(l => `<div>${l}</div>`).join('')}</div>`
+    : '';
+
+  return `<div class="mc-detail-body"><div class="mc-detail-log">${lines.join('')}</div>${metaHTML}</div>`;
 }
 
 function cancelBtn(jobId) {
@@ -105,7 +135,7 @@ function entryHTML(job, forceOpen = false) {
   <summary class="mc-log-entry-summary">
     <span class="mc-log-entry-icon">${icon}</span>
     <span class="mc-log-entry-batch">mocap-${job.batch}</span>
-    <span class="mc-log-entry-status">${entrySummary(job)}</span>
+    <span class="mc-log-entry-status">${statusSpans(job)}</span>
     ${cancel}
   </summary>
   <div class="mc-log-entry-detail">${entryDetailHTML(job)}</div>
@@ -203,6 +233,26 @@ document.addEventListener('click', async e => {
   }
 });
 
+// ── Clear queue + logs ────────────────────────────────────────────────────────
+
+$('btn-mc-clear').addEventListener('click', async () => {
+  const btn = $('btn-mc-clear');
+  btn.disabled = true;
+  try {
+    await api.mocapClear();
+    liveQueue = [];
+    renderLive();
+    $('mc-logs-history').innerHTML = '<div class="mc-logs-empty">No jobs yet today</div>';
+    $('mc-logs-drawer-history').innerHTML = $('mc-logs-history').innerHTML;
+    $('mc-logs-date-label').textContent = 'Today';
+    toast('Queue and logs cleared');
+  } catch (err) {
+    toast(`Clear failed: ${err.message}`, 'danger');
+  } finally {
+    btn.disabled = false;
+  }
+});
+
 // ── Mobile Logs button ────────────────────────────────────────────────────────
 
 $('btn-mc-logs').addEventListener('click', () => $('mc-logs-drawer').show());
@@ -259,15 +309,17 @@ $('btn-mc-submit').addEventListener('click', async () => {
   if (!videoInfo) { toast('Select a reference video', 'warning'); return; }
   if (!imageInfo) { toast('Select a reference image', 'warning'); return; }
 
+  const fps = parseInt($('mc-fps').value) || 24;
   const fullDuration = $('mc-full-duration').checked;
   let totalFrames;
   if (!fullDuration) {
-    totalFrames = parseInt($('mc-total-frames').value);
-    if (!totalFrames || totalFrames < 1) { toast('Enter total frames', 'warning'); return; }
+    const videoLength = parseFloat($('mc-video-length').value);
+    if (!videoLength || videoLength <= 0) { toast('Enter video length in seconds', 'warning'); return; }
+    totalFrames = Math.round(videoLength * fps);
   }
 
-  const startFrame = parseInt($('mc-start-frame').value) || 0;
-  const fps = parseInt($('mc-fps').value) || 16;
+  const startAt = parseFloat($('mc-start-at').value) || 0;
+  const startFrame = startAt > 0 ? Math.round(startAt * fps) : 0;
   const prompt = $('mc-prompt').value.trim() || undefined;
   const seedVal = $('mc-seed').value.trim();
   const seed = seedVal ? parseInt(seedVal) : undefined;

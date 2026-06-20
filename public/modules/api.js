@@ -53,6 +53,7 @@ export const api = {
   mocapStatus: () => api.get('/api/comfyui/mocap/status'),
   mocapLogs: (date) => api.get(`/api/comfyui/mocap/logs${date ? `?date=${date}` : ''}`),
   mocapCancel: (jobId) => api.post('/api/comfyui/mocap/cancel', { jobId }),
+  mocapClear: () => api.post('/api/comfyui/mocap/clear', {}),
   creativeVideo: filePath => api.post('/api/comfyui/creative-video', { filePath }),
   comfyQueue: () => api.get('/api/comfyui/queue'),
   comfyCancel: promptId => api.post('/api/comfyui/cancel', { promptId }),

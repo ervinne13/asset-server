@@ -750,12 +750,12 @@
             <sl-checkbox id="mc-full-duration" checked>Full Reference Video Duration</sl-checkbox>
             <div class="mc-duration-inputs" style="margin-top:10px">
               <div>
-                <label class="gen-label" for="mc-start-frame">Start Frame</label>
-                <input id="mc-start-frame" type="number" class="gen-seed-input" value="0" min="0" step="1" />
+                <label class="gen-label" for="mc-start-at">Start at (seconds)</label>
+                <input id="mc-start-at" type="number" class="gen-seed-input" value="0" min="0" step="0.1" />
               </div>
               <div id="mc-duration-row" style="display:none">
-                <label class="gen-label" for="mc-total-frames">Total Frames</label>
-                <input id="mc-total-frames" type="number" class="gen-seed-input" value="162" min="1" step="1" />
+                <label class="gen-label" for="mc-video-length">Video length (seconds)</label>
+                <input id="mc-video-length" type="number" class="gen-seed-input" value="10" min="0.1" step="0.1" />
               </div>
             </div>
             <small style="color:var(--sl-color-neutral-500);margin-top:6px;display:block">Renders base segment first, then chained extended segments.</small>
@@ -804,7 +804,10 @@
       <div class="mc-logs-col">
         <div class="mc-logs-col-header">
           <span id="mc-logs-date-label" class="mc-logs-date-label"></span>
-          <small class="mc-logs-hint">Close this page freely — jobs run on the server.</small>
+          <div style="display:flex;align-items:center;gap:10px">
+            <small class="mc-logs-hint">Close this page freely — jobs run on the server.</small>
+            <button id="btn-mc-clear" class="mc-clear-btn" title="Clear queue and today's logs">Clear</button>
+          </div>
         </div>
         <div id="mc-logs-running"></div>
         <div id="mc-logs-history"></div>

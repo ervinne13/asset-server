@@ -2443,6 +2443,9 @@ sl-dialog {
   white-space: nowrap;
 }
 
+@media (max-width: 768px) { .mc-status-desktop { display: none; } }
+@media (min-width: 769px) { .mc-status-mobile  { display: none; } }
+
 .mc-log-entry-detail {
   padding: 10px 12px;
   border-top: 1px solid var(--sl-color-neutral-200);
@@ -2452,11 +2455,47 @@ sl-dialog {
   font-variant-numeric: tabular-nums;
 }
 
+.mc-detail-body {
+  display: flex;
+  gap: 16px;
+}
+
+.mc-detail-log {
+  flex: 1;
+  min-width: 0;
+}
+
+.mc-detail-meta {
+  flex-shrink: 0;
+  text-align: right;
+  color: var(--sl-color-neutral-500);
+  line-height: 1.9;
+}
+
 .mc-seg-current { color: var(--sl-color-primary-600); }
 .mc-seg-eta     { color: var(--sl-color-neutral-500); font-style: italic; }
 .mc-seg-warning { color: var(--sl-color-warning-700); }
 .mc-seg-error   { color: var(--sl-color-danger-600); }
 .mc-seg-output  { color: var(--sl-color-success-700); font-family: var(--sl-font-mono, monospace); font-size: 11px; }
+
+.mc-clear-btn {
+  background: none;
+  border: 1px solid var(--sl-color-neutral-300);
+  border-radius: 4px;
+  cursor: pointer;
+  color: var(--sl-color-neutral-500);
+  font-size: 11px;
+  padding: 2px 8px;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+.mc-clear-btn:hover {
+  border-color: var(--sl-color-danger-400);
+  color: var(--sl-color-danger-600);
+}
+
+.mc-clear-btn:disabled { opacity: 0.4; cursor: default; }
 
 .mc-cancel-btn {
   background: none;

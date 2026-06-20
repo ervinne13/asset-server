@@ -339,6 +339,7 @@ function writeJobToLog(job) {
       startedAt: job.startedAt,
       segmentLogs: [...(job.segmentLogs || [])],
       segmentStartedAt: job.segmentStartedAt,
+      fps: job.fps, frameCount: job.frameCount, replacementMode: job.replacementMode,
     };
     if (idx >= 0) entries[idx] = snap; else entries.push(snap);
     fs.writeFileSync(path.join(LOGS_DIR, `motion-cap-${dateStr}.json`), JSON.stringify(entries, null, 2));
@@ -613,9 +614,16 @@ router.post('/api/comfyui/mocap', async (req, res) => {
 
 function publicJob(j) {
   if (!j) return null;
-  const { id, batch, status, stage, current, total, output, error, warning, audio, segmentLogs, segmentStartedAt, startedAt } = j;
-  return { id, batch, status, stage, current, total, output, error, warning, audio, segmentLogs, segmentStartedAt, startedAt };
+  const { id, batch, status, stage, current, total, output, error, warning, audio, segmentLogs, segmentStartedAt, startedAt, fps, frameCount, replacementMode } = j;
+  return { id, batch, status, stage, current, total, output, error, warning, audio, segmentLogs, segmentStartedAt, startedAt, fps, frameCount, replacementMode };
 }
+
+router.post('/api/comfyui/mocap/clear', (req, res) => {
+  writeQueue([]);
+  const logFile = path.join(LOGS_DIR, `motion-cap-${todayStr()}.json`);
+  try { fs.writeFileSync(logFile, '[]'); } catch {}
+  res.json({ ok: true });
+});
 
 router.get('/api/comfyui/mocap/status', (req, res) => {
   res.json({ job: publicJob(currentJob || lastJob), queue: readQueue() });
@@ -982,6 +990,7 @@ setTimeout(() => {
     if (interrupted?.id) {
       console.log(`[mocap] interrupted job ${interrupted.id} found — marking as error (cannot resume mid-chain)`);
       lastJob = { ...interrupted, status: 'error', error: 'Server restarted mid-chain — raws kept, restart job manually' };
+      writeJobToLog(lastJob);
       clearCurrentJobFile();
     }
   } catch { /* no interrupted job file */ }
