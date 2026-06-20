@@ -258,60 +258,14 @@ router.post('/api/comfyui/ltx-i2v', async (req, res) => {
   }
 });
 
-// ── Motion Capture: sequential chained generation ──────────────────────────────
-// Each segment animates the last frame of the previous segment so the joined clip
-// is frame-continuous (no 5s "snap"). Runs as a server-side background job.
+// ── Motion Capture shared utilities ──────────────────────────────────────────
 
-const SEG = 5, FPS = 25;
 const VIDEO_OUT_EXTS = new Set(['.mp4', '.webm', '.mov', '.mkv', '.gif']);
-
-let currentJob = null;
-let lastJob = null;
-
-const QUEUE_FILE = path.join(__dirname, '..', 'server-queue.json');
-const CURRENT_JOB_FILE = path.join(__dirname, '..', 'server-current-job.json');
-
-function readQueue() {
-  try { return JSON.parse(fs.readFileSync(QUEUE_FILE, 'utf8')); } catch { return []; }
-}
-function writeQueue(q) {
-  try { fs.writeFileSync(QUEUE_FILE, JSON.stringify(q, null, 2)); } catch {}
-}
-function enqueueJob(entry) {
-  const q = readQueue(); q.push(entry); writeQueue(q);
-}
-function dequeueJob() {
-  const q = readQueue(); if (!q.length) return null;
-  const entry = q.shift(); writeQueue(q); return entry;
-}
-function queueLength() { return readQueue().length; }
-function persistCurrentJob(job) {
-  try { fs.writeFileSync(CURRENT_JOB_FILE, JSON.stringify(job)); } catch (e) { console.error('[mocap] persist error:', e.message); }
-}
-function clearCurrentJobFile() {
-  try { fs.unlinkSync(CURRENT_JOB_FILE); } catch {}
-}
-
-function jobFromEntry(entry) {
-  return {
-    ...entry,
-    current: 0, stage: 'queued', status: 'running',
-    output: null, error: null, warning: null,
-    segmentLogs: [], segmentStartedAt: null,
-  };
-}
 
 function comfyInputDir(config) {
   if (config.comfyInputDir) return config.comfyInputDir;
   const staging = config.roots?.staging;
   return staging ? path.join(path.dirname(staging), 'input') : null;
-}
-
-function uploadFrameToComfy(url, filePath) {
-  const out = execFileSync('curl', ['-s', '-F', `image=@${filePath}`, `${url}/api/upload/image`],
-    { encoding: 'utf8', timeout: 30000 });
-  const r = JSON.parse(out);
-  return r.subfolder ? `${r.subfolder}/${r.name}` : r.name;
 }
 
 function resolveVideoOutput(entry, staging) {
@@ -356,44 +310,110 @@ async function waitForVideo(url, promptId, staging, timeoutMs = 45 * 60 * 1000) 
   throw new Error('timed out waiting for segment to render');
 }
 
-function buildSegment(image, video, skip, segDur, prompt, seed, prefix) {
-  const wf = JSON.parse(fs.readFileSync(path.join(WORKFLOWS_DIR, 'scail-animation.api.json'), 'utf8'));
+// ── Motion Capture: SCAIL base + extended chained generation ─────────────────
+
+const QUEUE_FILE = path.join(__dirname, '..', 'server-queue.json');
+const CURRENT_JOB_FILE = path.join(__dirname, '..', 'server-current-job.json');
+
+let currentJob = null;
+let lastJob = null;
+
+function readQueue() {
+  try { return JSON.parse(fs.readFileSync(QUEUE_FILE, 'utf8')); } catch { return []; }
+}
+function writeQueue(q) {
+  try { fs.writeFileSync(QUEUE_FILE, JSON.stringify(q, null, 2)); } catch {}
+}
+function enqueueJob(entry) {
+  const q = readQueue(); q.push(entry); writeQueue(q);
+}
+function dequeueJob() {
+  const q = readQueue(); if (!q.length) return null;
+  const entry = q.shift(); writeQueue(q); return entry;
+}
+function queueLength() { return readQueue().length; }
+function persistCurrentJob(job) {
+  try { fs.writeFileSync(CURRENT_JOB_FILE, JSON.stringify(job)); } catch (e) { console.error('[mocap] persist error:', e.message); }
+}
+function clearCurrentJobFile() {
+  try { fs.unlinkSync(CURRENT_JOB_FILE); } catch {}
+}
+function jobFromEntry(entry) {
+  return {
+    ...entry,
+    current: 0, stage: 'queued', status: 'running',
+    output: null, error: null, warning: null,
+    segmentLogs: [], segmentStartedAt: null,
+    rawPaths: [], joinPaths: [], trimmedPaths: [],
+  };
+}
+
+function uploadVideoToComfy(url, filePath) {
+  const out = execFileSync('curl', ['-s', '-F', `image=@${filePath}`, `${url}/api/upload/image`],
+    { encoding: 'utf8', timeout: 60000 });
+  const r = JSON.parse(out);
+  return r.subfolder ? `${r.subfolder}/${r.name}` : r.name;
+}
+
+function buildBaseSegment(image, video, fps, startFrame, frameCount, prompt, seed, prefix, replacementMode) {
+  const wf = JSON.parse(fs.readFileSync(path.join(WORKFLOWS_DIR, 'scail-base-motion.api.json'), 'utf8'));
   wf['113'].inputs.video = video;
-  wf['113'].inputs.skip_first_frames = skip;
+  wf['141'].inputs.value = startFrame;
   wf['58'].inputs.image = image;
-  wf['126'].inputs.value = segDur;
-  if (prompt) wf['6'].inputs.text = prompt;
-  wf['3'].inputs.seed = seed;
+  wf['140'].inputs.value = frameCount;
+  wf['135'].inputs.value = fps;
+  if (prompt) wf['137'].inputs.text = prompt;
+  wf['139'].inputs.seed = seed;
   wf['49'].inputs.filename_prefix = prefix;
+  wf['138:101'].inputs.replacement_mode = !!replacementMode;
   return wf;
 }
 
-async function runChain(job, resumeFrom = 0, resumeLastFrame = null) {
+function buildExtendedSegment(image, video, prevVideoComfyName, fps, startFrame, frameCount, prompt, seed, prefix, replacementMode) {
+  const wf = JSON.parse(fs.readFileSync(path.join(WORKFLOWS_DIR, 'scale-extended-motion.api.json'), 'utf8'));
+  wf['210'].inputs.video = video;
+  wf['229'].inputs.value = startFrame;
+  wf['211'].inputs.image = image;
+  wf['228'].inputs.value = frameCount + 5;
+  wf['201'].inputs.value = fps;
+  if (prompt) wf['202'].inputs.text = prompt;
+  wf['225'].inputs.file = prevVideoComfyName;
+  wf['208'].inputs.seed = seed;
+  wf['207'].inputs.filename_prefix = prefix;
+  wf['209:101'].inputs.replacement_mode = !!replacementMode;
+  return wf;
+}
+
+async function runChain(job) {
   const config = loadConfig();
   const url = comfyUrl(config);
   const staging = config.roots?.staging;
-  // Derive dirPrefix from the batch timestamp so resumed jobs use the same directory.
   const dirPrefix = `${job.batch.slice(0, 8)}/mocap`;
 
-  let refImage = resumeFrom > 0 ? resumeLastFrame : job.image;
-  if (!job.rawPaths) job.rawPaths = [];
+  const fps = job.fps || 16;
+  const frameCount = job.frameCount || 81;
 
-  // Pre-compute segment durations for verification later.
-  const durations = Array.from({ length: job.total }, (_, k) =>
-    k === job.total - 1 ? (job.totalDuration - k * SEG) : SEG
-  );
+  if (!job.rawPaths) job.rawPaths = [];
+  if (!job.joinPaths) job.joinPaths = [];
+  if (!job.trimmedPaths) job.trimmedPaths = [];
 
   persistCurrentJob(job);
 
   try {
-    for (let i = resumeFrom; i < job.total; i++) {
-      const segDur = durations[i];
+    let prevVideoComfyName = null;
+
+    for (let i = 0; i < job.total; i++) {
+      const startFrame = (job.startFrame || 0) + i * frameCount;
       job.current = i + 1;
       job.segmentStartedAt = Date.now();
       job.stage = 'generating';
 
       const prefix = `${dirPrefix}/mocap-${job.batch}-seg${String(i + 1).padStart(2, '0')}`;
-      const wf = buildSegment(refImage, job.video, (job.startAt + i * SEG) * FPS, segDur, job.prompt, job.seed, prefix);
+
+      const wf = i === 0
+        ? buildBaseSegment(job.image, job.video, fps, startFrame, frameCount, job.prompt, job.seed, prefix, job.replacementMode)
+        : buildExtendedSegment(job.image, job.video, prevVideoComfyName, fps, startFrame, frameCount, job.prompt, job.seed, prefix, job.replacementMode);
+
       const result = await comfyPost(url, '/api/prompt', { prompt: wf });
       if (!result.prompt_id) throw new Error(`ComfyUI rejected segment ${i + 1}`);
 
@@ -403,17 +423,29 @@ async function runChain(job, resumeFrom = 0, resumeLastFrame = null) {
       job.segmentLogs.push({ segment: i + 1, durationMs: Date.now() - job.segmentStartedAt });
       persistCurrentJob(job);
 
+      if (i === 0) {
+        // Base segment: use raw output directly for join
+        job.joinPaths.push(outPath);
+      } else {
+        // Extended segment: trim the 5 prepended overlap frames before joining
+        job.stage = 'trimming';
+        const trimmed = outPath.replace(/\.mp4$/i, '-trimmed.mp4');
+        await trimFirstNFrames(outPath, trimmed, 5);
+        job.joinPaths.push(trimmed);
+        job.trimmedPaths.push(trimmed);
+      }
+      persistCurrentJob(job);
+
       if (i < job.total - 1) {
-        job.stage = 'extracting';
-        const png = path.join(os.tmpdir(), `mocap-${job.batch}-frame${i + 1}.png`);
-        await extractLastFrame(outPath, png);
-        refImage = uploadFrameToComfy(url, png);
-        fs.unlink(png, () => {});
+        // Upload the raw output (with overlap frames intact) for the next extended run
+        job.stage = 'uploading';
+        prevVideoComfyName = uploadVideoToComfy(url, outPath);
       }
     }
 
     job.stage = 'joining';
-    const output = path.join(staging, dirPrefix, `mocap-${job.batch}.mp4`);
+    const output = path.join(staging, dirPrefix, 'joined', `mocap-${job.batch}.mp4`);
+    fs.mkdirSync(path.dirname(output), { recursive: true });
 
     let audioPath;
     if (job.audio) {
@@ -427,15 +459,18 @@ async function runChain(job, resumeFrom = 0, resumeLastFrame = null) {
       }
     }
 
-    await joinVideos({ inputs: job.rawPaths, output, audioPath });
+    await joinVideos({ inputs: job.joinPaths, output, audioPath });
 
-    // Verify the join before deleting any raw segments.
-    const expected = durations.reduce((a, b) => a + b, 0);
+    // Verify duration — always keep the joined output; only delete raws if it passes.
+    const expected = job.total * frameCount / fps;
     const actual = await probeDuration(output);
-    const ok = fs.existsSync(output) && actual != null && Math.abs(actual - expected) <= Math.max(1.5, expected * 0.15);
-    if (!ok) throw new Error(`join verification failed (expected ~${expected}s, got ${actual}s) — raws kept`);
-
-    for (const p of job.rawPaths) { try { fs.unlinkSync(p); } catch {} }
+    const ok = fs.existsSync(output) && actual != null && Math.abs(actual - expected) <= Math.max(2, expected * 0.2);
+    if (ok) {
+      for (const p of job.rawPaths) { try { fs.unlinkSync(p); } catch {} }
+      for (const p of job.trimmedPaths) { try { fs.unlinkSync(p); } catch {} }
+    } else {
+      job.warning = (job.warning ? job.warning + '; ' : '') + `duration mismatch (expected ~${expected}s, got ${actual}s) — raws kept`;
+    }
 
     job.output = output;
     job.stage = 'done';
@@ -459,24 +494,29 @@ async function runChain(job, resumeFrom = 0, resumeLastFrame = null) {
 }
 
 router.post('/api/comfyui/mocap', async (req, res) => {
-  const { video, image, prompt, totalDuration, startAt: startAtRaw, seed, audio, forceSingle } = req.body;
-  const startAt = (startAtRaw != null && !isNaN(startAtRaw)) ? Math.max(0, Number(startAtRaw)) : 0;
+  const { video, image, prompt, totalFrames: totalFramesRaw, fps: fpsRaw, startFrame: startFrameRaw, frameCount: frameCountRaw, seed, audio, replacementMode } = req.body;
+  const startFrame = (startFrameRaw != null && !isNaN(startFrameRaw)) ? Math.max(0, Number(startFrameRaw)) : 0;
+  const fps = (fpsRaw != null && !isNaN(fpsRaw)) ? Math.max(1, Number(fpsRaw)) : 16;
+  const frameCount = (frameCountRaw != null && !isNaN(frameCountRaw)) ? Math.max(1, Number(frameCountRaw)) : 81;
+
   if (!video) return res.status(400).json({ error: 'video required' });
   if (!image) return res.status(400).json({ error: 'image required' });
   if (queueLength() >= 10) return res.status(429).json({ error: 'Queue is full (max 10 jobs). Wait for some to finish.' });
 
   let total;
-  if (totalDuration != null) {
-    total = parseInt(totalDuration);
-    if (!total || total < 1) return res.status(400).json({ error: 'totalDuration must be a positive integer' });
+  if (totalFramesRaw != null) {
+    const tf = parseInt(totalFramesRaw);
+    if (!tf || tf < 1) return res.status(400).json({ error: 'totalFrames must be a positive integer' });
+    total = Math.max(1, Math.ceil(tf / frameCount));
   } else {
     const config = loadConfig();
     const inputDir = comfyInputDir(config);
     if (!inputDir) return res.status(400).json({ error: 'comfyInputDir not configured — cannot probe video duration' });
     const videoPath = path.join(inputDir, video);
     const probed = await probeDuration(videoPath).catch(() => null);
-    if (!probed || probed < 1) return res.status(400).json({ error: 'Could not determine video duration — specify totalDuration manually' });
-    total = Math.max(1, Math.ceil(probed - startAt));
+    if (!probed || probed < 1) return res.status(400).json({ error: 'Could not determine video duration — specify totalFrames manually' });
+    const videoFrames = Math.max(1, Math.floor(probed * fps) - startFrame);
+    total = Math.max(1, Math.ceil(videoFrames / frameCount));
   }
 
   const now = new Date();
@@ -487,26 +527,25 @@ router.post('/api/comfyui/mocap', async (req, res) => {
     batch,
     video, image,
     prompt: prompt?.trim() || '',
-    totalDuration: total,
+    fps, frameCount, startFrame,
+    replacementMode: !!replacementMode,
     seed: (seed != null && !isNaN(seed)) ? Number(seed) : Math.floor(Math.random() * 2 ** 32),
     audio: !!audio,
-    startAt,
-    total: forceSingle ? 1 : Math.ceil(total / SEG),
+    total,
     current: 0,
     stage: 'queued',
     status: 'running',
-    output: null,
-    error: null,
-    warning: null,
+    output: null, error: null, warning: null,
     startedAt: Date.now(),
-    segmentLogs: [],
-    segmentStartedAt: null,
+    segmentLogs: [], segmentStartedAt: null,
+    rawPaths: [], joinPaths: [], trimmedPaths: [],
   };
+
   const entry = {
     id: job.id, batch: job.batch, video: job.video, image: job.image,
-    prompt: job.prompt, totalDuration: job.totalDuration, startAt: job.startAt,
-    seed: job.seed, audio: job.audio, forceSingle: !!forceSingle,
-    total: job.total, queuedAt: Date.now(),
+    prompt: job.prompt, frameCount: job.frameCount, startFrame: job.startFrame,
+    fps: job.fps, replacementMode: job.replacementMode,
+    seed: job.seed, audio: job.audio, total: job.total, queuedAt: Date.now(),
   };
 
   if (currentJob) {
@@ -527,260 +566,6 @@ function publicJob(j) {
 
 router.get('/api/comfyui/mocap/status', (req, res) => {
   res.json({ job: publicJob(currentJob || lastJob), queue: readQueue() });
-});
-
-// ── Motion Capture 2: SCAIL base + extended chained generation ──────────────
-// Uses scail-base-motion for the first segment, then scale-extended-motion for
-// subsequent segments. Extended outputs include 5 prepended overlap frames that
-// get trimmed before joining. startAt advances by segmentDuration each segment.
-
-const QUEUE_FILE_2 = path.join(__dirname, '..', 'server-queue2.json');
-const CURRENT_JOB_FILE_2 = path.join(__dirname, '..', 'server-current-job2.json');
-
-let currentJob2 = null;
-let lastJob2 = null;
-
-function readQueue2() {
-  try { return JSON.parse(fs.readFileSync(QUEUE_FILE_2, 'utf8')); } catch { return []; }
-}
-function writeQueue2(q) {
-  try { fs.writeFileSync(QUEUE_FILE_2, JSON.stringify(q, null, 2)); } catch {}
-}
-function enqueueJob2(entry) {
-  const q = readQueue2(); q.push(entry); writeQueue2(q);
-}
-function dequeueJob2() {
-  const q = readQueue2(); if (!q.length) return null;
-  const entry = q.shift(); writeQueue2(q); return entry;
-}
-function queueLength2() { return readQueue2().length; }
-function persistCurrentJob2(job) {
-  try { fs.writeFileSync(CURRENT_JOB_FILE_2, JSON.stringify(job)); } catch (e) { console.error('[mocap2] persist error:', e.message); }
-}
-function clearCurrentJobFile2() {
-  try { fs.unlinkSync(CURRENT_JOB_FILE_2); } catch {}
-}
-function jobFromEntry2(entry) {
-  return {
-    ...entry,
-    current: 0, stage: 'queued', status: 'running',
-    output: null, error: null, warning: null,
-    segmentLogs: [], segmentStartedAt: null,
-    rawPaths: [], joinPaths: [], trimmedPaths: [],
-  };
-}
-
-function uploadVideoToComfy(url, filePath) {
-  const out = execFileSync('curl', ['-s', '-F', `image=@${filePath}`, `${url}/api/upload/image`],
-    { encoding: 'utf8', timeout: 60000 });
-  const r = JSON.parse(out);
-  return r.subfolder ? `${r.subfolder}/${r.name}` : r.name;
-}
-
-function buildBaseSegment2(image, video, fps, startAt, segDur, prompt, seed, prefix) {
-  const wf = JSON.parse(fs.readFileSync(path.join(WORKFLOWS_DIR, 'scail-base-motion.api.json'), 'utf8'));
-  wf['113'].inputs.video = video;
-  wf['132'].inputs.value = startAt;
-  wf['58'].inputs.image = image;
-  wf['126'].inputs.value = segDur;
-  wf['135'].inputs.value = fps;
-  if (prompt) wf['137'].inputs.text = prompt;
-  wf['139'].inputs.seed = seed;
-  wf['49'].inputs.filename_prefix = prefix;
-  return wf;
-}
-
-function buildExtendedSegment2(image, video, prevVideoComfyName, fps, startAt, segDur, prompt, seed, prefix) {
-  const wf = JSON.parse(fs.readFileSync(path.join(WORKFLOWS_DIR, 'scale-extended-motion.api.json'), 'utf8'));
-  wf['210'].inputs.video = video;
-  wf['204'].inputs.value = startAt;
-  wf['211'].inputs.image = image;
-  wf['203'].inputs.value = segDur;
-  wf['201'].inputs.value = fps;
-  if (prompt) wf['202'].inputs.text = prompt;
-  wf['225'].inputs.file = prevVideoComfyName;
-  wf['208'].inputs.seed = seed;
-  wf['207'].inputs.filename_prefix = prefix;
-  return wf;
-}
-
-async function runChain2(job) {
-  const config = loadConfig();
-  const url = comfyUrl(config);
-  const staging = config.roots?.staging;
-  const dirPrefix = `${job.batch.slice(0, 8)}/mocap2`;
-
-  const fps = job.fps || 16;
-  const segDur = job.segmentDuration || 3;
-
-  if (!job.rawPaths) job.rawPaths = [];
-  if (!job.joinPaths) job.joinPaths = [];
-  if (!job.trimmedPaths) job.trimmedPaths = [];
-
-  persistCurrentJob2(job);
-
-  try {
-    let prevVideoComfyName = null;
-
-    for (let i = 0; i < job.total; i++) {
-      const startAt = job.startAt + i * segDur;
-      job.current = i + 1;
-      job.segmentStartedAt = Date.now();
-      job.stage = 'generating';
-
-      const prefix = `${dirPrefix}/mocap2-${job.batch}-seg${String(i + 1).padStart(2, '0')}`;
-
-      const wf = i === 0
-        ? buildBaseSegment2(job.image, job.video, fps, startAt, segDur, job.prompt, job.seed, prefix)
-        : buildExtendedSegment2(job.image, job.video, prevVideoComfyName, fps, startAt, segDur, job.prompt, job.seed, prefix);
-
-      const result = await comfyPost(url, '/api/prompt', { prompt: wf });
-      if (!result.prompt_id) throw new Error(`ComfyUI rejected segment ${i + 1}`);
-
-      const outPath = await waitForVideo(url, result.prompt_id, staging);
-      job.rawPaths.push(outPath);
-      job.lastSegmentPath = outPath;
-      job.segmentLogs.push({ segment: i + 1, durationMs: Date.now() - job.segmentStartedAt });
-      persistCurrentJob2(job);
-
-      if (i === 0) {
-        // Base segment: use raw output directly for join
-        job.joinPaths.push(outPath);
-      } else {
-        // Extended segment: trim the 5 prepended overlap frames before joining
-        job.stage = 'trimming';
-        const trimmed = outPath.replace(/\.mp4$/i, '-trimmed.mp4');
-        await trimFirstNFrames(outPath, trimmed, 5, fps);
-        job.joinPaths.push(trimmed);
-        job.trimmedPaths.push(trimmed);
-      }
-      persistCurrentJob2(job);
-
-      if (i < job.total - 1) {
-        // Upload the raw output (with overlap frames intact) for the next extended run
-        job.stage = 'uploading';
-        prevVideoComfyName = uploadVideoToComfy(url, outPath);
-      }
-    }
-
-    job.stage = 'joining';
-    const output = path.join(staging, dirPrefix, `mocap2-${job.batch}.mp4`);
-
-    let audioPath;
-    if (job.audio) {
-      const inputDir = comfyInputDir(config);
-      const candidate = inputDir ? path.join(inputDir, job.video) : null;
-      if (candidate && fs.existsSync(candidate)) {
-        audioPath = candidate;
-        job.stage = 'joining-audio';
-      } else {
-        job.warning = 'reference video audio not found — output is silent';
-      }
-    }
-
-    await joinVideos({ inputs: job.joinPaths, output, audioPath });
-
-    const expected = job.total * segDur;
-    const actual = await probeDuration(output);
-    const ok = fs.existsSync(output) && actual != null && Math.abs(actual - expected) <= Math.max(2, expected * 0.2);
-    if (!ok) throw new Error(`join verification failed (expected ~${expected}s, got ${actual}s) — raws kept`);
-
-    for (const p of job.rawPaths) { try { fs.unlinkSync(p); } catch {} }
-    for (const p of job.trimmedPaths) { try { fs.unlinkSync(p); } catch {} }
-
-    job.output = output;
-    job.stage = 'done';
-    job.status = 'done';
-    console.log(`[mocap2] job ${job.id} done → ${output}`);
-  } catch (err) {
-    job.status = 'error';
-    job.error = err.message;
-    console.error(`[mocap2] job ${job.id} failed:`, err.message);
-  } finally {
-    clearCurrentJobFile2();
-    lastJob2 = job;
-    currentJob2 = null;
-    const nextEntry = dequeueJob2();
-    if (nextEntry) {
-      currentJob2 = jobFromEntry2(nextEntry);
-      console.log(`[mocap2] starting queued job ${currentJob2.id} (${readQueue2().length} remaining)`);
-      runChain2(currentJob2).catch(err => console.error('[mocap2] queued job failed:', err.message));
-    }
-  }
-}
-
-router.post('/api/comfyui/mocap2', async (req, res) => {
-  const { video, image, prompt, totalDuration, fps: fpsRaw, startAt: startAtRaw, segmentDuration: segDurRaw, seed, audio } = req.body;
-  const startAt = (startAtRaw != null && !isNaN(startAtRaw)) ? Math.max(0, Number(startAtRaw)) : 0;
-  const fps = (fpsRaw != null && !isNaN(fpsRaw)) ? Math.max(1, Number(fpsRaw)) : 16;
-  const segDur = (segDurRaw != null && !isNaN(segDurRaw)) ? Math.max(1, Number(segDurRaw)) : 3;
-
-  if (!video) return res.status(400).json({ error: 'video required' });
-  if (!image) return res.status(400).json({ error: 'image required' });
-  if (queueLength2() >= 10) return res.status(429).json({ error: 'Queue is full (max 10 jobs). Wait for some to finish.' });
-
-  let total;
-  if (totalDuration != null) {
-    total = parseInt(totalDuration);
-    if (!total || total < 1) return res.status(400).json({ error: 'totalDuration must be a positive integer' });
-  } else {
-    const config = loadConfig();
-    const inputDir = comfyInputDir(config);
-    if (!inputDir) return res.status(400).json({ error: 'comfyInputDir not configured — cannot probe video duration' });
-    const videoPath = path.join(inputDir, video);
-    const probed = await probeDuration(videoPath).catch(() => null);
-    if (!probed || probed < 1) return res.status(400).json({ error: 'Could not determine video duration — specify totalDuration manually' });
-    total = Math.max(1, Math.ceil(probed - startAt));
-  }
-
-  const now = new Date();
-  const batch = `${now.toISOString().slice(0, 10).replace(/-/g, '')}${now.toTimeString().slice(0, 5).replace(':', '')}`;
-
-  const job = {
-    id: `mocap2-${Date.now()}`,
-    batch,
-    video, image,
-    prompt: prompt?.trim() || '',
-    totalDuration: total,
-    fps, segmentDuration: segDur,
-    seed: (seed != null && !isNaN(seed)) ? Number(seed) : Math.floor(Math.random() * 2 ** 32),
-    audio: !!audio,
-    startAt,
-    total: Math.ceil(total / segDur),
-    current: 0,
-    stage: 'queued',
-    status: 'running',
-    output: null, error: null, warning: null,
-    startedAt: Date.now(),
-    segmentLogs: [], segmentStartedAt: null,
-    rawPaths: [], joinPaths: [], trimmedPaths: [],
-  };
-
-  const entry = {
-    id: job.id, batch: job.batch, video: job.video, image: job.image,
-    prompt: job.prompt, totalDuration: job.totalDuration, startAt: job.startAt,
-    fps: job.fps, segmentDuration: job.segmentDuration,
-    seed: job.seed, audio: job.audio, total: job.total, queuedAt: Date.now(),
-  };
-
-  if (currentJob2) {
-    enqueueJob2(entry);
-    return res.json({ ok: true, jobId: job.id, segments: job.total, queued: true, position: queueLength2() });
-  }
-  currentJob2 = job;
-  runChain2(job).catch(err => console.error('[mocap2] job failed:', err.message));
-
-  res.json({ ok: true, jobId: job.id, segments: job.total, queued: false });
-});
-
-function publicJob2(j) {
-  if (!j) return null;
-  const { id, batch, status, stage, current, total, output, error, warning, audio, segmentLogs, segmentStartedAt, startedAt } = j;
-  return { id, batch, status, stage, current, total, output, error, warning, audio, segmentLogs, segmentStartedAt, startedAt };
-}
-
-router.get('/api/comfyui/mocap2/status', (req, res) => {
-  res.json({ job: publicJob2(currentJob2 || lastJob2), queue: readQueue2() });
 });
 
 const VIDEO_DIRECTION_SYSTEM = `You are a prompt engineer for OpenOppAI - a short-form AI video content page that animates photorealistic images using LTX 2.3.
@@ -934,7 +719,6 @@ const WORKFLOW_DEFS = {
   'qwen-image-edit': { workflow: 'qwen',        label: 'Qwen Edit',  prefixHint: '/qwen-',      getPrompt: n => n['62']?.inputs?.value     || '', getImage: n => n['47']?.inputs?.image || null },
   'qwen-pose':        { workflow: 'qwen-pose',   label: 'Qwen Pose',  prefixHint: '/qwen-pose',  getPrompt: () => '',                                  getImage: n => n['73']?.inputs?.image  || null },
   'post-process-skin': { workflow: 'skin',        label: 'Skin PP',    prefixHint: '/skin-',      getPrompt: () => '',                                  getImage: n => n['337']?.inputs?.image || null },
-  'scail-animation':   { workflow: 'mocap',       label: 'Motion Cap', prefixHint: '/mocap/',     getPrompt: n => n['6']?.inputs?.text       || '', getImage: n => n['58']?.inputs?.image  || null },
 };
 
 function extractJobInfo(nodes) {
@@ -1093,69 +877,24 @@ router.post('/api/comfyui/post-process-skin', async (req, res) => {
   }
 });
 
-// On startup, resume any interrupted or queued jobs.
-setTimeout(async () => {
+// On startup, resume any queued mocap jobs (interrupted jobs restart from scratch
+// since prevVideoComfyName state is lost).
+setTimeout(() => {
   if (currentJob) return;
-
-  // First: try to resume a job that was running when the server last stopped.
   try {
     const interrupted = JSON.parse(fs.readFileSync(CURRENT_JOB_FILE, 'utf8'));
-    if (interrupted?.id && interrupted.current < interrupted.total) {
-      console.log(`[mocap] resuming interrupted job ${interrupted.id} from segment ${interrupted.current + 1}`);
-      currentJob = { ...interrupted, status: 'running', stage: 'queued', segmentStartedAt: null };
-      let resumeLastFrame = null;
-      if (interrupted.current > 0 && interrupted.lastSegmentPath) {
-        try {
-          const config = loadConfig();
-          const url = comfyUrl(config);
-          const png = path.join(os.tmpdir(), `mocap-${interrupted.batch}-resume.png`);
-          await extractLastFrame(interrupted.lastSegmentPath, png);
-          resumeLastFrame = uploadFrameToComfy(url, png);
-          fs.unlink(png, () => {});
-        } catch (e) {
-          console.error('[mocap] resume: last-frame extraction failed:', e.message, '— raws kept');
-          lastJob = { ...currentJob, status: 'error', error: 'Resume failed (frame extraction error) — raws kept' };
-          currentJob = null;
-          clearCurrentJobFile();
-        }
-      }
-      if (currentJob) {
-        runChain(currentJob, interrupted.current, resumeLastFrame)
-          .catch(err => console.error('[mocap] resumed interrupted job failed:', err.message));
-        return;
-      }
-    } else {
+    if (interrupted?.id) {
+      console.log(`[mocap] interrupted job ${interrupted.id} found — marking as error (cannot resume mid-chain)`);
+      lastJob = { ...interrupted, status: 'error', error: 'Server restarted mid-chain — raws kept, restart job manually' };
       clearCurrentJobFile();
     }
   } catch { /* no interrupted job file */ }
 
-  // Then: resume any jobs waiting in the file queue.
   const entry = dequeueJob();
   if (entry) {
     console.log(`[mocap] resuming queued job ${entry.id} after server start`);
     currentJob = jobFromEntry(entry);
     runChain(currentJob).catch(err => console.error('[mocap] resumed job failed:', err.message));
-  }
-}, 3000);
-
-// On startup, resume any queued mocap2 jobs (interrupted jobs restart from scratch
-// since prevVideoComfyName state is lost).
-setTimeout(() => {
-  if (currentJob2) return;
-  try {
-    const interrupted = JSON.parse(fs.readFileSync(CURRENT_JOB_FILE_2, 'utf8'));
-    if (interrupted?.id) {
-      console.log(`[mocap2] interrupted job ${interrupted.id} found — marking as error (cannot resume mid-chain)`);
-      lastJob2 = { ...interrupted, status: 'error', error: 'Server restarted mid-chain — raws kept, restart job manually' };
-      clearCurrentJobFile2();
-    }
-  } catch { /* no interrupted job file */ }
-
-  const entry = dequeueJob2();
-  if (entry) {
-    console.log(`[mocap2] resuming queued job ${entry.id} after server start`);
-    currentJob2 = jobFromEntry2(entry);
-    runChain2(currentJob2).catch(err => console.error('[mocap2] resumed job failed:', err.message));
   }
 }, 4000);
 

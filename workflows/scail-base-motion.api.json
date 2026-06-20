@@ -6,7 +6,7 @@
         0
       ],
       "loop_count": 0,
-      "filename_prefix": "video/20260619/SCAIL2-Test",
+      "filename_prefix": "video/20260620/SCAIL2-Test",
       "format": "video/h264-mp4",
       "pix_fmt": "yuv420p",
       "crf": 19,
@@ -43,11 +43,11 @@
       "custom_width": 0,
       "custom_height": 0,
       "frame_load_cap": [
-        "125",
+        "140",
         0
       ],
       "skip_first_frames": [
-        "136",
+        "141",
         0
       ],
       "select_every_nth": 1,
@@ -58,41 +58,6 @@
       "title": "Motion Reference Video"
     }
   },
-  "125": {
-    "inputs": {
-      "expression": "((int(a * b) - 1) // 4) * 4 + 1",
-      "a": [
-        "126",
-        0
-      ],
-      "b": [
-        "135",
-        0
-      ]
-    },
-    "class_type": "MathExpression|pysssss",
-    "_meta": {
-      "title": "Duration to Frames"
-    }
-  },
-  "126": {
-    "inputs": {
-      "value": 3
-    },
-    "class_type": "PrimitiveInt",
-    "_meta": {
-      "title": "Duration (Seconds)"
-    }
-  },
-  "132": {
-    "inputs": {
-      "value": 6
-    },
-    "class_type": "PrimitiveInt",
-    "_meta": {
-      "title": "Start Reference Video At (Seconds)"
-    }
-  },
   "135": {
     "inputs": {
       "value": 16
@@ -100,23 +65,6 @@
     "class_type": "PrimitiveFloat",
     "_meta": {
       "title": "FPS"
-    }
-  },
-  "136": {
-    "inputs": {
-      "expression": "((int(a * b) - 1) // 4) * 4 + 1",
-      "a": [
-        "135",
-        0
-      ],
-      "b": [
-        "132",
-        0
-      ]
-    },
-    "class_type": "MathExpression|pysssss",
-    "_meta": {
-      "title": "Duration to Frames"
     }
   },
   "137": {
@@ -135,6 +83,24 @@
     "class_type": "Seed (rgthree)",
     "_meta": {
       "title": "Seed (rgthree)"
+    }
+  },
+  "140": {
+    "inputs": {
+      "value": 81
+    },
+    "class_type": "PrimitiveInt",
+    "_meta": {
+      "title": "Frame Count"
+    }
+  },
+  "141": {
+    "inputs": {
+      "value": 0
+    },
+    "class_type": "PrimitiveInt",
+    "_meta": {
+      "title": "Start Frame"
     }
   },
   "138:102": {
@@ -373,7 +339,7 @@
         1
       ],
       "length": [
-        "125",
+        "140",
         0
       ],
       "batch_size": 1,

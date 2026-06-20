@@ -1,6 +1,6 @@
 import { api } from './api.js';
 import { $, toast } from './helpers.js';
-import { openImagePicker, updateSlotUI } from './img-picker.js';
+import { openImagePicker, updateSlotUI, wireSlotDropZone } from './img-picker.js';
 
 let videoInfo = null;
 let imageInfo = null;
@@ -25,6 +25,9 @@ $('mc-img-slot').addEventListener('click', () => {
   });
 });
 
+wireSlotDropZone('mc-video-slot', 'video', info => { videoInfo = info; });
+wireSlotDropZone('mc-img-slot', 'image', info => { imageInfo = info; });
+
 // ── Progress rendering ──────────────────────────────────────────────────────────
 
 function stageText(job) {
@@ -32,7 +35,8 @@ function stageText(job) {
   switch (job.stage) {
     case 'queued':        return 'Starting…';
     case 'generating':    return `Rendering ${seg}…`;
-    case 'extracting':    return `Extracting last frame (${seg})…`;
+    case 'trimming':      return `Trimming overlap frames (${seg})…`;
+    case 'uploading':     return `Uploading segment to ComfyUI (${seg})…`;
     case 'joining':       return `Joining ${job.total} segments…`;
     case 'joining-audio': return `Joining ${job.total} segments + adding audio…`;
     case 'done':          return `✓ Done — ${job.output ? job.output.split('/').pop() : 'finished'}`;
@@ -191,29 +195,42 @@ $('btn-motion-capture').addEventListener('click', e => {
 
 $('motion-capture-back').addEventListener('click', () => history.back());
 
-// ── Generate ──────────────────────────────────────────────────────────────────
+// ── Duration toggle ───────────────────────────────────────────────────────────
 
 $('mc-full-duration').addEventListener('sl-change', e => {
   $('mc-duration-row').style.display = e.target.checked ? 'none' : '';
 });
+
+// ── FPS → frame count sync ────────────────────────────────────────────────────
+
+$('mc-fps').addEventListener('change', () => {
+  const fps = Math.max(1, parseInt($('mc-fps').value) || 16);
+  // 4n+1 nearest to 5s worth of frames
+  $('mc-frame-count').value = Math.floor(5 * fps / 4) * 4 + 1;
+});
+
+// ── Generate ──────────────────────────────────────────────────────────────────
 
 $('btn-mc-submit').addEventListener('click', async () => {
   if (!videoInfo) { toast('Select a reference video', 'warning'); return; }
   if (!imageInfo) { toast('Select a reference image', 'warning'); return; }
 
   const fullDuration = $('mc-full-duration').checked;
-  let totalDuration;
+  let totalFrames;
   if (!fullDuration) {
-    totalDuration = parseInt($('mc-duration').value);
-    if (!totalDuration || totalDuration < 1) { toast('Enter a total duration (seconds)', 'warning'); return; }
+    totalFrames = parseInt($('mc-total-frames').value);
+    if (!totalFrames || totalFrames < 1) { toast('Enter total frames', 'warning'); return; }
   }
 
-  const startAt = parseInt($('mc-start-at').value) || 0;
+  const startFrame = parseInt($('mc-start-frame').value) || 0;
+  const fps = parseInt($('mc-fps').value) || 16;
   const prompt = $('mc-prompt').value.trim() || undefined;
   const seedVal = $('mc-seed').value.trim();
   const seed = seedVal ? parseInt(seedVal) : undefined;
   const audio = $('mc-audio').checked;
-  const forceSingle = $('mc-force-single').checked;
+  const frameCountVal = parseInt($('mc-frame-count').value);
+  const frameCount = (frameCountVal && frameCountVal >= 1) ? frameCountVal : 81;
+  const replacementMode = $('mc-replacement-mode').checked || undefined;
 
   const btn = $('btn-mc-submit');
   btn.loading = true;
@@ -224,11 +241,13 @@ $('btn-mc-submit').addEventListener('click', async () => {
       video: videoInfo.comfyFilename,
       image: imageInfo.comfyFilename,
       prompt,
-      totalDuration,
-      startAt: startAt || undefined,
+      totalFrames,
+      fps,
+      startFrame: startFrame || undefined,
+      frameCount,
       seed,
       audio,
-      forceSingle,
+      replacementMode,
     });
     $('motion-capture-status').textContent = '';
     if (submitResult.queued) {

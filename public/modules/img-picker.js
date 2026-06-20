@@ -264,6 +264,53 @@ $('img-picker-confirm').addEventListener('click', async () => {
   }
 });
 
+// ── Slot drop-zone helper ─────────────────────────────────────────────────────
+// Wires drag-and-drop directly onto a slot element. Uploads on drop, then calls
+// onSelect with the same info shape as the modal confirm path.
+
+export function wireSlotDropZone(slotId, kind, onSelect) {
+  const el = $(slotId);
+  let counter = 0;
+
+  el.addEventListener('dragenter', e => {
+    e.preventDefault();
+    e.stopPropagation();
+    counter++;
+    el.classList.add('drag-over');
+  });
+
+  el.addEventListener('dragleave', () => {
+    if (--counter <= 0) { counter = 0; el.classList.remove('drag-over'); }
+  });
+
+  el.addEventListener('dragover', e => { e.preventDefault(); e.stopPropagation(); });
+
+  el.addEventListener('drop', async e => {
+    e.preventDefault();
+    e.stopPropagation();
+    counter = 0;
+    el.classList.remove('drag-over');
+
+    const file = e.dataTransfer.files[0];
+    if (!file) return;
+
+    if (kind === 'video' && !file.type.startsWith('video/')) { toast('Drop a video file', 'warning'); return; }
+    if (kind === 'image' && !file.type.startsWith('image/')) { toast('Drop an image file', 'warning'); return; }
+
+    el.classList.add('slot-uploading');
+    try {
+      const result = await api.uploadImageFromFile(file);
+      const info = { comfyFilename: result.comfyFilename, displayName: file.name, previewUrl: URL.createObjectURL(file), kind };
+      onSelect(info);
+      updateSlotUI(slotId, info);
+    } catch (err) {
+      toast(`Upload failed: ${err.message}`, 'danger');
+    } finally {
+      el.classList.remove('slot-uploading');
+    }
+  });
+}
+
 export function openImagePicker({ onSelect, onClear = null, kind = 'image', returnPath = false }) {
   onSelectCallback = onSelect;
   onClearCallback = onClear;

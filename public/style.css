@@ -2151,6 +2151,17 @@ sl-dialog {
   background: var(--sl-color-neutral-50);
 }
 
+.qi-img-slot.drag-over {
+  border-color: var(--sl-color-primary-500);
+  background: var(--sl-color-primary-50);
+  color: var(--sl-color-primary-600);
+}
+
+.qi-img-slot.slot-uploading {
+  opacity: 0.5;
+  pointer-events: none;
+}
+
 .qi-img-slot.has-image {
   border-style: solid;
   border-color: var(--sl-color-primary-400);

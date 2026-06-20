@@ -1,31 +1,7 @@
 {
-  "199": {
-    "inputs": {
-      "source": [
-        "205",
-        0
-      ]
-    },
-    "class_type": "PreviewAny",
-    "_meta": {
-      "title": "Total Frames"
-    }
-  },
-  "200": {
-    "inputs": {
-      "source": [
-        "206",
-        0
-      ]
-    },
-    "class_type": "PreviewAny",
-    "_meta": {
-      "title": "SKip Frames"
-    }
-  },
   "201": {
     "inputs": {
-      "value": 16
+      "value": 30
     },
     "class_type": "PrimitiveFloat",
     "_meta": {
@@ -41,58 +17,6 @@
       "title": "Positive Prompt"
     }
   },
-  "203": {
-    "inputs": {
-      "value": 3
-    },
-    "class_type": "PrimitiveInt",
-    "_meta": {
-      "title": "Duration (Seconds)"
-    }
-  },
-  "204": {
-    "inputs": {
-      "value": 9
-    },
-    "class_type": "PrimitiveInt",
-    "_meta": {
-      "title": "Start Reference Video At (Seconds)"
-    }
-  },
-  "205": {
-    "inputs": {
-      "expression": "((int(a * b) - 1) // 4) * 4 + 1 + 5",
-      "a": [
-        "203",
-        0
-      ],
-      "b": [
-        "201",
-        0
-      ]
-    },
-    "class_type": "MathExpression|pysssss",
-    "_meta": {
-      "title": "Duration to Frames"
-    }
-  },
-  "206": {
-    "inputs": {
-      "expression": "(((int(a * b) - 1) // 4) * 4 + 1)\n",
-      "a": [
-        "201",
-        0
-      ],
-      "b": [
-        "204",
-        0
-      ]
-    },
-    "class_type": "MathExpression|pysssss",
-    "_meta": {
-      "title": "Duration to Frames"
-    }
-  },
   "207": {
     "inputs": {
       "frame_rate": [
@@ -100,7 +24,7 @@
         0
       ],
       "loop_count": 0,
-      "filename_prefix": "video/20260619/SCAIL2-Test",
+      "filename_prefix": "video/20260620/SCAIL2-Test",
       "format": "video/h264-mp4",
       "pix_fmt": "yuv420p",
       "crf": 19,
@@ -129,7 +53,7 @@
   },
   "210": {
     "inputs": {
-      "video": "7571604-uhd_2160_4096_25fps.mp4",
+      "video": "Shela Andriani - Dancing.mp4",
       "force_rate": [
         "201",
         0
@@ -137,11 +61,11 @@
       "custom_width": 0,
       "custom_height": 0,
       "frame_load_cap": [
-        "205",
+        "228",
         0
       ],
       "skip_first_frames": [
-        "206",
+        "229",
         0
       ],
       "select_every_nth": 1,
@@ -154,7 +78,7 @@
   },
   "211": {
     "inputs": {
-      "image": "pasted/image (68).png"
+      "image": "pasted/image (69).png"
     },
     "class_type": "LoadImage",
     "_meta": {
@@ -163,12 +87,30 @@
   },
   "225": {
     "inputs": {
-      "file": "SCAIL2-Test_00001 (1).mp4",
+      "file": "SCAIL2_00001_.mp4",
       "video-preview": ""
     },
     "class_type": "LoadVideo",
     "_meta": {
       "title": "Previous Video Generated"
+    }
+  },
+  "228": {
+    "inputs": {
+      "value": 157
+    },
+    "class_type": "PrimitiveInt",
+    "_meta": {
+      "title": "Frame Count"
+    }
+  },
+  "229": {
+    "inputs": {
+      "value": 157
+    },
+    "class_type": "PrimitiveInt",
+    "_meta": {
+      "title": "Start Frame"
     }
   },
   "198:174": {
@@ -1082,7 +1024,7 @@
     "inputs": {
       "object_indices": "",
       "sort_by": "area",
-      "replacement_mode": false,
+      "replacement_mode": true,
       "driving_track_data": [
         "209:112",
         0
@@ -1124,69 +1066,6 @@
     "class_type": "CLIPTextEncode",
     "_meta": {
       "title": "CLIP Text Encode (Negative Prompt)"
-    }
-  },
-  "209:101": {
-    "inputs": {
-      "width": [
-        "209:104",
-        0
-      ],
-      "height": [
-        "209:104",
-        1
-      ],
-      "length": [
-        "205",
-        0
-      ],
-      "batch_size": 1,
-      "pose_strength": 0.99,
-      "pose_start": 0,
-      "pose_end": 1,
-      "video_frame_offset": 0,
-      "previous_frame_count": 5,
-      "replacement_mode": false,
-      "positive": [
-        "209:6",
-        0
-      ],
-      "negative": [
-        "209:7",
-        0
-      ],
-      "vae": [
-        "209:39",
-        0
-      ],
-      "pose_video": [
-        "210",
-        0
-      ],
-      "pose_video_mask": [
-        "209:107",
-        0
-      ],
-      "reference_image": [
-        "209:103",
-        0
-      ],
-      "reference_image_mask": [
-        "209:107",
-        1
-      ],
-      "clip_vision_output": [
-        "209:56",
-        0
-      ],
-      "previous_frames": [
-        "227:226",
-        0
-      ]
-    },
-    "class_type": "WanSCAILToVideo",
-    "_meta": {
-      "title": "WanSCAILToVideo"
     }
   },
   "209:6": {
@@ -1289,6 +1168,69 @@
     "class_type": "GetImageSize",
     "_meta": {
       "title": "Get Image Size"
+    }
+  },
+  "209:101": {
+    "inputs": {
+      "width": [
+        "209:104",
+        0
+      ],
+      "height": [
+        "209:104",
+        1
+      ],
+      "length": [
+        "228",
+        0
+      ],
+      "batch_size": 1,
+      "pose_strength": 0.99,
+      "pose_start": 0,
+      "pose_end": 1,
+      "video_frame_offset": 0,
+      "previous_frame_count": 5,
+      "replacement_mode": true,
+      "positive": [
+        "209:6",
+        0
+      ],
+      "negative": [
+        "209:7",
+        0
+      ],
+      "vae": [
+        "209:39",
+        0
+      ],
+      "pose_video": [
+        "210",
+        0
+      ],
+      "pose_video_mask": [
+        "209:107",
+        0
+      ],
+      "reference_image": [
+        "209:103",
+        0
+      ],
+      "reference_image_mask": [
+        "209:107",
+        1
+      ],
+      "clip_vision_output": [
+        "209:56",
+        0
+      ],
+      "previous_frames": [
+        "227:226",
+        0
+      ]
+    },
+    "class_type": "WanSCAILToVideo",
+    "_meta": {
+      "title": "WanSCAILToVideo"
     }
   }
 }
