@@ -333,13 +333,17 @@ function writeJobToLog(job) {
     const idx = entries.findIndex(e => e.id === job.id);
     const snap = {
       id: job.id, batch: job.batch,
+      video: job.video, image: job.image,
+      videoServerPath: job.videoServerPath || null,
+      imageServerPath: job.imageServerPath || null,
       status: job.status, stage: job.stage,
       current: job.current, total: job.total,
       output: job.output, error: job.error, warning: job.warning,
       startedAt: job.startedAt,
       segmentLogs: [...(job.segmentLogs || [])],
       segmentStartedAt: job.segmentStartedAt,
-      fps: job.fps, frameCount: job.frameCount, replacementMode: job.replacementMode,
+      fps: job.fps, frameCount: job.frameCount, videoFrames: job.videoFrames, replacementMode: job.replacementMode,
+      audio: job.audio,
     };
     if (idx >= 0) entries[idx] = snap; else entries.push(snap);
     fs.writeFileSync(path.join(LOGS_DIR, `motion-cap-${dateStr}.json`), JSON.stringify(entries, null, 2));
@@ -389,6 +393,11 @@ function uploadVideoToComfy(url, filePath) {
   return r.subfolder ? `${r.subfolder}/${r.name}` : r.name;
 }
 
+function snapTo4n1Down(n) {
+  const k = Math.floor((n - 1) / 4);
+  return Math.max(4 * k + 1, 5);
+}
+
 function buildBaseSegment(image, video, fps, startFrame, frameCount, prompt, seed, prefix, replacementMode) {
   const wf = JSON.parse(fs.readFileSync(path.join(WORKFLOWS_DIR, 'scail-base-motion.api.json'), 'utf8'));
   wf['113'].inputs.video = video;
@@ -422,7 +431,10 @@ async function runChain(job) {
   const config = loadConfig();
   const url = comfyUrl(config);
   const staging = config.roots?.staging;
-  const dirPrefix = `${job.batch.slice(0, 8)}/mocap`;
+  const dateStr = job.batch.slice(0, 8);
+  const jobFolder = path.join(staging, dateStr, 'mocap', `mocap-${job.batch}`);
+  const rawsFolder = path.join(jobFolder, 'raws');
+  fs.mkdirSync(rawsFolder, { recursive: true });
 
   const fps = job.fps || 16;
   const frameCount = job.frameCount || 81;
@@ -444,17 +456,31 @@ async function runChain(job) {
     }
 
     for (let i = resumeFrom; i < job.total; i++) {
+      // Pause check — current segment runs to completion, then we wait here
+      while (job.paused) {
+        job.stage = 'paused';
+        persistCurrentJob(job);
+        await new Promise(r => setTimeout(r, 2000));
+      }
+
       const startFrame = (job.startFrame || 0) + i * frameCount;
       job.current = i + 1;
       job.segmentStartedAt = Date.now();
       job.stage = 'generating';
       persistCurrentJob(job);
 
-      const prefix = `${dirPrefix}/mocap-${job.batch}-seg${String(i + 1).padStart(2, '0')}`;
+      // For the last segment, cap at actual remaining source frames (snapped to 4n+1).
+      const isLastSeg = i === job.total - 1;
+      const segFrameCount = (isLastSeg && job.videoFrames != null)
+        ? snapTo4n1Down(Math.min(frameCount, job.videoFrames - i * frameCount))
+        : frameCount;
+
+      const segName = `mocap-${job.batch}-seg${String(i + 1).padStart(2, '0')}`;
+      const prefix = `${dateStr}/mocap/mocap-${job.batch}/raws/${segName}`;
 
       const wf = i === 0
-        ? buildBaseSegment(job.image, job.video, fps, startFrame, frameCount, job.prompt, job.seed, prefix, job.replacementMode)
-        : buildExtendedSegment(job.image, job.video, prevVideoComfyName, fps, startFrame, frameCount, job.prompt, job.seed, prefix, job.replacementMode);
+        ? buildBaseSegment(job.image, job.video, fps, startFrame, segFrameCount, job.prompt, job.seed, prefix, job.replacementMode)
+        : buildExtendedSegment(job.image, job.video, prevVideoComfyName, fps, startFrame, segFrameCount, job.prompt, job.seed, prefix, job.replacementMode);
 
       const result = await comfyPost(url, '/api/prompt', { prompt: wf });
       if (!result.prompt_id) throw new Error(`ComfyUI rejected segment ${i + 1}`);
@@ -486,8 +512,7 @@ async function runChain(job) {
     }
 
     job.stage = 'joining';
-    const output = path.join(staging, dirPrefix, 'joined', `mocap-${job.batch}.mp4`);
-    fs.mkdirSync(path.dirname(output), { recursive: true });
+    const output = path.join(jobFolder, `mocap-${job.batch}.mp4`);
 
     let audioPath;
     if (job.audio) {
@@ -509,7 +534,7 @@ async function runChain(job) {
     await joinVideos({ inputs: job.joinPaths, output, audioPath });
 
     // Verify duration — always keep the joined output; only delete raws if it passes.
-    const expected = job.total * frameCount / fps;
+    const expected = (job.videoFrames != null ? job.videoFrames : job.total * frameCount) / fps;
     const actual = await probeDuration(output);
     const ok = fs.existsSync(output) && actual != null && Math.abs(actual - expected) <= Math.max(2, expected * 0.2);
     if (ok) {
@@ -524,28 +549,10 @@ async function runChain(job) {
     job.status = 'done';
     console.log(`[mocap] job ${job.id} done → ${output}`);
   } catch (err) {
-    job.status = 'error';
-    job.error = err.message;
-    console.error(`[mocap] job ${job.id} failed:`, err.message);
-    // Move any partial raws to a cancelled/ subfolder to keep the main folder clean
-    const allPartials = [...(job.rawPaths || []), ...(job.trimmedPaths || [])];
-    if (allPartials.length > 0) {
-      const config = loadConfig();
-      const staging = config.roots?.staging;
-      if (staging) {
-        const cancelledDir = path.join(staging, `${job.batch.slice(0, 8)}/mocap/cancelled`);
-        try {
-          fs.mkdirSync(cancelledDir, { recursive: true });
-          for (const p of allPartials) {
-            if (fs.existsSync(p)) {
-              fs.renameSync(p, path.join(cancelledDir, path.basename(p)));
-            }
-          }
-        } catch (moveErr) {
-          console.error('[mocap] failed to move cancelled raws:', moveErr.message);
-        }
-      }
-    }
+    job.status = job.cancellationRequested ? 'cancelled' : 'error';
+    job.error  = job.cancellationRequested ? 'Cancelled by user' : err.message;
+    if (!job.cancellationRequested) console.error(`[mocap] job ${job.id} failed:`, err.message);
+    // Raws stay in their raws/ subfolder inside the job folder — no move needed
   } finally {
     writeJobToLog(job);
     clearCurrentJobFile();
@@ -561,7 +568,7 @@ async function runChain(job) {
 }
 
 router.post('/api/comfyui/mocap', async (req, res) => {
-  const { video, image, prompt, totalFrames: totalFramesRaw, fps: fpsRaw, startFrame: startFrameRaw, frameCount: frameCountRaw, seed, audio, replacementMode, useVideoFps } = req.body;
+  const { video, image, prompt, totalFrames: totalFramesRaw, fps: fpsRaw, startFrame: startFrameRaw, frameCount: frameCountRaw, seed, audio, replacementMode, useVideoFps, videoServerPath, imageServerPath } = req.body;
   const startFrame = (startFrameRaw != null && !isNaN(startFrameRaw)) ? Math.max(0, Number(startFrameRaw)) : 0;
   const frameCount = (frameCountRaw != null && !isNaN(frameCountRaw)) ? Math.max(1, Number(frameCountRaw)) : 81;
 
@@ -582,11 +589,12 @@ router.post('/api/comfyui/mocap', async (req, res) => {
     fps = (fpsRaw != null && !isNaN(fpsRaw)) ? Math.max(1, Number(fpsRaw)) : 16;
   }
 
-  let total;
+  let total, videoFrames;
   if (totalFramesRaw != null) {
     const tf = parseInt(totalFramesRaw);
     if (!tf || tf < 1) return res.status(400).json({ error: 'totalFrames must be a positive integer' });
-    total = Math.max(1, Math.ceil(tf / frameCount));
+    videoFrames = tf;
+    total = Math.max(1, Math.ceil(videoFrames / frameCount));
   } else {
     const config = loadConfig();
     const inputDir = comfyInputDir(config);
@@ -594,19 +602,21 @@ router.post('/api/comfyui/mocap', async (req, res) => {
     const videoPath = path.join(inputDir, video);
     const probed = await probeDuration(videoPath).catch(() => null);
     if (!probed || probed < 1) return res.status(400).json({ error: 'Could not determine video duration — specify totalFrames manually' });
-    const videoFrames = Math.max(1, Math.floor(probed * fps) - startFrame);
+    videoFrames = Math.max(1, Math.floor(probed * fps) - startFrame);
     total = Math.max(1, Math.ceil(videoFrames / frameCount));
   }
 
   const now = new Date();
-  const batch = `${now.toISOString().slice(0, 10).replace(/-/g, '')}${now.toTimeString().slice(0, 5).replace(':', '')}`;
+  const batch = `${now.toISOString().slice(0, 10).replace(/-/g, '')}${now.toTimeString().slice(0, 8).replace(/:/g, '')}`;
 
   const job = {
     id: `mocap-${Date.now()}`,
     batch,
     video, image,
+    videoServerPath: videoServerPath || null,
+    imageServerPath: imageServerPath || null,
     prompt: prompt?.trim() || '',
-    fps, frameCount, startFrame,
+    fps, frameCount, startFrame, videoFrames,
     replacementMode: !!replacementMode,
     seed: (seed != null && !isNaN(seed)) ? Number(seed) : Math.floor(Math.random() * 2 ** 32),
     audio: !!audio,
@@ -622,8 +632,9 @@ router.post('/api/comfyui/mocap', async (req, res) => {
 
   const entry = {
     id: job.id, batch: job.batch, video: job.video, image: job.image,
+    videoServerPath: job.videoServerPath, imageServerPath: job.imageServerPath,
     prompt: job.prompt, frameCount: job.frameCount, startFrame: job.startFrame,
-    fps: job.fps, replacementMode: job.replacementMode,
+    fps: job.fps, videoFrames: job.videoFrames, replacementMode: job.replacementMode,
     seed: job.seed, audio: job.audio, total: job.total, queuedAt: Date.now(),
   };
 
@@ -639,8 +650,8 @@ router.post('/api/comfyui/mocap', async (req, res) => {
 
 function publicJob(j) {
   if (!j) return null;
-  const { id, batch, status, stage, current, total, output, error, warning, audio, segmentLogs, segmentStartedAt, startedAt, fps, frameCount, replacementMode } = j;
-  return { id, batch, status, stage, current, total, output, error, warning, audio, segmentLogs, segmentStartedAt, startedAt, fps, frameCount, replacementMode };
+  const { id, batch, status, stage, current, total, output, error, warning, audio, segmentLogs, segmentStartedAt, startedAt, fps, frameCount, replacementMode, paused } = j;
+  return { id, batch, status, stage, current, total, output, error, warning, audio, segmentLogs, segmentStartedAt, startedAt, fps, frameCount, replacementMode, paused };
 }
 
 router.post('/api/comfyui/mocap/clear', (req, res) => {
@@ -659,6 +670,7 @@ router.post('/api/comfyui/mocap/cancel', async (req, res) => {
   if (!jobId) return res.status(400).json({ error: 'jobId required' });
 
   if (currentJob && currentJob.id === jobId) {
+    currentJob.cancellationRequested = true;
     const config = loadConfig();
     await comfyPost(comfyUrl(config), '/api/interrupt', {}).catch(() => {});
     return res.json({ ok: true, action: 'interrupted' });
@@ -667,12 +679,86 @@ router.post('/api/comfyui/mocap/cancel', async (req, res) => {
   const q = readQueue();
   const idx = q.findIndex(e => e.id === jobId);
   if (idx >= 0) {
-    q.splice(idx, 1);
+    const [removed] = q.splice(idx, 1);
     writeQueue(q);
+    writeJobToLog({ ...removed, status: 'cancelled', error: 'Cancelled before starting', current: 0, stage: 'queued', segmentLogs: [] });
     return res.json({ ok: true, action: 'dequeued' });
   }
 
   res.status(404).json({ error: 'Job not found in running or queue' });
+});
+
+router.post('/api/comfyui/mocap/pause', (req, res) => {
+  if (!currentJob || currentJob.status !== 'running') {
+    return res.status(400).json({ error: 'No running job to pause' });
+  }
+  currentJob.paused = true;
+  persistCurrentJob(currentJob);
+  res.json({ ok: true });
+});
+
+router.post('/api/comfyui/mocap/resume', (req, res) => {
+  if (!currentJob) return res.status(400).json({ error: 'No current job to resume' });
+  currentJob.paused = false;
+  persistCurrentJob(currentJob);
+  res.json({ ok: true });
+});
+
+router.post('/api/comfyui/mocap/retry', async (req, res) => {
+  const { jobId } = req.body;
+  if (!jobId) return res.status(400).json({ error: 'jobId required' });
+
+  // Search logs across all days for this job
+  let original = null;
+  try {
+    const files = fs.existsSync(LOGS_DIR)
+      ? fs.readdirSync(LOGS_DIR).filter(f => /^motion-cap-\d{8}\.json$/.test(f)).sort().reverse()
+      : [];
+    for (const f of files) {
+      const entries = readDayLog(f.slice(11, 19));
+      const found = entries.find(e => e.id === jobId);
+      if (found) { original = found; break; }
+    }
+  } catch {}
+
+  if (!original) return res.status(404).json({ error: 'Job not found in logs' });
+  if (queueLength() >= 10) return res.status(429).json({ error: 'Queue is full (max 10 jobs).' });
+
+  const now = new Date();
+  const batch = `${now.toISOString().slice(0, 10).replace(/-/g, '')}${now.toTimeString().slice(0, 8).replace(/:/g, '')}`;
+  const job = {
+    id: `mocap-${Date.now()}`,
+    batch,
+    video: original.video, image: original.image,
+    videoServerPath: original.videoServerPath || null,
+    imageServerPath: original.imageServerPath || null,
+    prompt: original.prompt || '',
+    fps: original.fps, frameCount: original.frameCount, videoFrames: original.videoFrames || null,
+    startFrame: original.startFrame || 0,
+    replacementMode: original.replacementMode || false,
+    seed: Math.floor(Math.random() * 2 ** 32),
+    audio: original.audio || false,
+    total: original.total,
+    current: 0, stage: 'queued', status: 'running',
+    output: null, error: null, warning: null,
+    startedAt: Date.now(),
+    segmentLogs: [], segmentStartedAt: null,
+    rawPaths: [], joinPaths: [], trimmedPaths: [],
+  };
+  const entry = {
+    id: job.id, batch: job.batch, video: job.video, image: job.image,
+    videoServerPath: job.videoServerPath, imageServerPath: job.imageServerPath,
+    prompt: job.prompt, frameCount: job.frameCount, startFrame: job.startFrame,
+    fps: job.fps, videoFrames: job.videoFrames, replacementMode: job.replacementMode,
+    seed: job.seed, audio: job.audio, total: job.total, queuedAt: Date.now(),
+  };
+  if (currentJob || queueLength() > 0) {
+    enqueueJob(entry);
+    return res.json({ ok: true, jobId: job.id, segments: job.total, queued: true, position: queueLength() });
+  }
+  currentJob = job;
+  runChain(job).catch(err => console.error('[mocap] retry job failed:', err.message));
+  res.json({ ok: true, jobId: job.id, segments: job.total, queued: false });
 });
 
 router.get('/api/comfyui/mocap/logs', (req, res) => {

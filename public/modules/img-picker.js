@@ -255,7 +255,7 @@ $('img-picker-confirm').addEventListener('click', async () => {
       previewUrl = pickerFileUrl;
     }
 
-    if (onSelectCallback) onSelectCallback({ comfyFilename: result.comfyFilename, displayName, previewUrl, kind: pickerKind });
+    if (onSelectCallback) onSelectCallback({ comfyFilename: result.comfyFilename, serverPath: pickerPath || null, displayName, previewUrl, kind: pickerKind });
     pickerDialog.hide();
   } catch (err) {
     toast(`Upload failed: ${err.message}`, 'danger');

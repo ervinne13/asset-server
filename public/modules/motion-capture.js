@@ -54,6 +54,7 @@ function stageLabel(job, short = false) {
     case 'uploading':     return short ? 'Uploading…' : `Uploading (${seg})…`;
     case 'joining':       return `Joining ${job.total} seg…`;
     case 'joining-audio': return 'Joining + audio…';
+    case 'paused':        return short ? 'Paused' : `Paused — next: seg ${job.current + 1}`;
     case 'done':          return 'Done';
     default:              return job.stage || 'Working…';
   }
@@ -135,21 +136,34 @@ function entryDetailHTML(job) {
 }
 
 function cancelBtn(jobId) {
-  return `<button class="mc-cancel-btn" data-cancel-job="${jobId}" title="Cancel">✕</button>`;
+  return `<button class="mc-action-btn mc-cancel-btn" data-cancel-job="${jobId}" title="Cancel">✕</button>`;
+}
+function pauseBtn(jobId) {
+  return `<button class="mc-action-btn mc-pause-btn" data-pause-job="${jobId}" title="Pause after current segment">⏸</button>`;
+}
+function resumeBtn(jobId) {
+  return `<button class="mc-action-btn mc-resume-btn" data-resume-job="${jobId}" title="Resume">▶</button>`;
+}
+function retryBtn(jobId) {
+  return `<button class="mc-action-btn mc-retry-btn" data-retry-job="${jobId}" title="Retry with same settings">↺</button>`;
 }
 
 function entryHTML(job, forceOpen = false) {
   const running = job.status === 'running';
-  const cls = running ? 'running' : (job.status === 'error' ? 'error' : 'done');
-  const icon = running ? '●' : (job.status === 'error' ? '✕' : '✓');
+  const paused  = running && job.stage === 'paused';
+  const failed  = job.status === 'error' || job.status === 'cancelled';
+  const cls  = running ? (paused ? 'paused' : 'running') : (job.status === 'error' ? 'error' : job.status === 'cancelled' ? 'cancelled' : 'done');
+  const icon = paused ? '⏸' : (running ? '●' : (failed ? '✕' : '✓'));
   const open = forceOpen ? ' open' : '';
-  const cancel = running ? cancelBtn(job.id) : '';
+  const actions = running
+    ? cancelBtn(job.id) + (paused ? resumeBtn(job.id) : pauseBtn(job.id))
+    : (failed ? retryBtn(job.id) : '');
   return `<details class="mc-log-entry mc-log-entry-${cls}"${open}>
   <summary class="mc-log-entry-summary">
     <span class="mc-log-entry-icon">${icon}</span>
     <span class="mc-log-entry-batch">mocap-${job.batch}</span>
     <span class="mc-log-entry-status">${statusSpans(job)}</span>
-    ${cancel}
+    ${actions}
   </summary>
   <div class="mc-log-entry-detail">${entryDetailHTML(job)}</div>
 </details>`;
@@ -230,19 +244,49 @@ function stopPolling() {
 // ── Cancel job ────────────────────────────────────────────────────────────────
 
 document.addEventListener('click', async e => {
-  const btn = e.target.closest('[data-cancel-job]');
+  const btn = e.target.closest('[data-cancel-job],[data-pause-job],[data-resume-job],[data-retry-job]');
   if (!btn) return;
   e.preventDefault();
   e.stopPropagation();
-  const jobId = btn.dataset.cancelJob;
   btn.disabled = true;
-  try {
-    await api.mocapCancel(jobId);
-    toast('Job cancelled');
-    await poll();
-  } catch (err) {
-    toast(`Cancel failed: ${err.message}`, 'danger');
-    btn.disabled = false;
+
+  if (btn.dataset.cancelJob) {
+    try {
+      await api.mocapCancel(btn.dataset.cancelJob);
+      toast('Job cancelled');
+      await poll();
+    } catch (err) {
+      toast(`Cancel failed: ${err.message}`, 'danger');
+      btn.disabled = false;
+    }
+  } else if (btn.dataset.pauseJob) {
+    try {
+      await api.mocapPause(btn.dataset.pauseJob);
+      toast('Will pause after current segment finishes');
+      await poll();
+    } catch (err) {
+      toast(`Pause failed: ${err.message}`, 'danger');
+      btn.disabled = false;
+    }
+  } else if (btn.dataset.resumeJob) {
+    try {
+      await api.mocapResume(btn.dataset.resumeJob);
+      toast('Resumed');
+      await poll();
+    } catch (err) {
+      toast(`Resume failed: ${err.message}`, 'danger');
+      btn.disabled = false;
+    }
+  } else if (btn.dataset.retryJob) {
+    try {
+      const result = await api.mocapRetry(btn.dataset.retryJob);
+      toast(result.queued ? `Queued at position ${result.position}` : 'Started');
+      startPolling();
+      fetchLogs();
+    } catch (err) {
+      toast(`Retry failed: ${err.message}`, 'danger');
+      btn.disabled = false;
+    }
   }
 });
 
@@ -358,6 +402,8 @@ $('btn-mc-submit').addEventListener('click', async () => {
     const result = await api.mocap({
       video: videoInfo.comfyFilename,
       image: imageInfo.comfyFilename,
+      videoServerPath: videoInfo.serverPath || undefined,
+      imageServerPath: imageInfo.serverPath || undefined,
       prompt, totalFrames, fps,
       useVideoFps: useVideoFps || undefined,
       startFrame: startFrame || undefined,
